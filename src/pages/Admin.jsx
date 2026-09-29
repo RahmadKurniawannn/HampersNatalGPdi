@@ -1,0 +1,303 @@
+import { useState } from 'react';
+
+const formatRupiah = price => new Intl.NumberFormat('id-ID', {
+  style: 'currency',
+  currency: 'IDR',
+  maximumFractionDigits: 0,
+}).format(Number(price) || 0);
+
+const parsePrice = price => Number(String(price).replace(/[^0-9]/g, '')) || 0;
+
+const emptyProduct = {
+  name: '',
+  category: '',
+  basePrice: 0,
+  image: '',
+  description: '',
+  weight: '',
+  includes: [],
+};
+
+const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSaveProduct, onDeleteProduct, onUploadImage, onLogout }) => {
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyProduct);
+  const [notice, setNotice] = useState('');
+  const [isImageUploading, setIsImageUploading] = useState(false);
+
+  const startNewProduct = () => {
+    setEditingId(null);
+    setForm(emptyProduct);
+    setNotice('');
+  };
+
+  const startEditing = product => {
+    setEditingId(product.id);
+    setForm({
+      ...product,
+      includes: [...product.includes],
+    });
+    setNotice('');
+    window.scrollTo(0, 0);
+  };
+
+  const updateField = (field, value) => {
+    setForm(current => ({ ...current, [field]: value }));
+  };
+
+  const handleImageUpload = async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setNotice('File yang dipilih harus berupa gambar.');
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setNotice('Ukuran gambar maksimal 3 MB agar upload ke Supabase tetap ringan.');
+      return;
+    }
+
+    setIsImageUploading(true);
+    setNotice(`Mengunggah ${file.name}...`);
+    try {
+      const imageUrl = await onUploadImage(file);
+      updateField('image', imageUrl);
+      setNotice(`Gambar ${file.name} siap disimpan.`);
+    } catch (error) {
+      setNotice(`Gambar gagal diunggah ke Supabase: ${error.message}`);
+    } finally {
+      setIsImageUploading(false);
+    }
+  };
+
+  const handleSave = async event => {
+    event.preventDefault();
+    const missingFields = [];
+    if (!form.name.trim()) missingFields.push('nama');
+    if (!form.image?.trim()) missingFields.push('gambar lokal atau URL');
+    if (parsePrice(form.basePrice) <= 0) missingFields.push('harga');
+
+    if (isImageUploading) {
+      setNotice('Tunggu sampai upload gambar selesai.');
+      return;
+    }
+
+    if (missingFields.length > 0) {
+      setNotice(`Lengkapi ${missingFields.join(', ')} produk terlebih dahulu.`);
+      return;
+    }
+
+    try {
+      await onSaveProduct({
+        ...form,
+        id: editingId ?? Date.now(),
+        name: form.name.trim(),
+        basePrice: parsePrice(form.basePrice),
+        includes: form.includes.filter(item => item.trim()),
+      });
+      setNotice(editingId ? 'Produk berhasil diperbarui di Supabase.' : 'Produk baru berhasil ditambahkan ke Supabase.');
+    } catch (error) {
+      setNotice(`Produk gagal disimpan: ${error.message}`);
+    }
+  };
+
+  const handleDelete = async product => {
+    if (window.confirm(`Hapus produk ${product.name}?`)) {
+      try {
+        await onDeleteProduct(product.id);
+        if (editingId === product.id) startNewProduct();
+        setNotice('Produk berhasil dihapus.');
+      } catch (error) {
+        setNotice(`Produk gagal dihapus: ${error.message}`);
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-base">
+      <div className="border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-10 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-primary">Panel pengelola</p>
+            <h1 className="mt-3 font-serif text-4xl text-main sm:text-5xl">Kelola katalog</h1>
+            <p className="mt-3 max-w-xl text-sm font-light leading-relaxed text-muted">
+              Atur tampilan produk yang muncul di Home, katalog, dan halaman detail dari satu tempat.
+            </p>
+            <p className="mt-4 text-xs text-muted">Perubahan disimpan ke Supabase setelah tombol simpan berhasil.</p>
+          </div>
+          <div className="flex items-center gap-5 self-start lg:self-auto">
+            <button
+              onClick={() => onNavigate('home')}
+              className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Lihat website
+            </button>
+            <button
+              onClick={onLogout}
+              className="text-sm text-muted underline-offset-4 hover:text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Keluar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.8fr)]">
+        <section className="border border-gray-200 bg-white p-5 sm:p-7 lg:col-span-2">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-primary">Akses pengelola</p>
+              <h2 className="mt-2 font-serif text-2xl text-main">Akun yang terdaftar</h2>
+              <p className="mt-2 text-sm font-light text-muted">Daftar ini diambil langsung dari profil Supabase.</p>
+            </div>
+            <button
+              onClick={onRefreshAdminUsers}
+              className="self-start border border-gray-300 px-4 py-2.5 text-sm font-medium text-main transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:self-auto"
+            >
+              Refresh akun
+            </button>
+          </div>
+
+          <div className="mt-6 overflow-x-auto border-t border-gray-200">
+            {adminUsers.length === 0 ? (
+              <p className="py-6 text-sm font-light text-muted">Belum ada profil yang bisa ditampilkan.</p>
+            ) : (
+              <table className="w-full min-w-[34rem] text-left text-sm">
+                <thead className="text-xs uppercase tracking-wider text-muted">
+                  <tr>
+                    <th className="py-4 pr-5 font-medium">Email</th>
+                    <th className="py-4 pr-5 font-medium">Role</th>
+                    <th className="py-4 font-medium">Terdaftar</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {adminUsers.map(user => (
+                    <tr key={user.id}>
+                      <td className="py-4 pr-5 text-main">{user.email || 'Email tidak tersedia'}</td>
+                      <td className="py-4 pr-5">
+                        <span className={`inline-flex px-2.5 py-1 text-xs font-medium ${user.role === 'admin' ? 'bg-primary text-white' : 'bg-gray-100 text-muted'}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="py-4 text-muted">
+                        {user.created_at ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(user.created_at)) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted">{products.length} produk aktif</p>
+              <h2 className="mt-2 font-serif text-2xl text-main">Daftar produk</h2>
+            </div>
+            <button
+              onClick={startNewProduct}
+              className="bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Tambah produk
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {products.length === 0 && (
+              <div className="border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+                <p className="font-serif text-xl text-main">Belum ada produk</p>
+                <p className="mt-2 text-sm font-light text-muted">Mulai dengan menambahkan produk pertama.</p>
+              </div>
+            )}
+            {products.map(product => (
+              <article key={product.id} className={`flex gap-4 border bg-white p-4 transition-colors ${editingId === product.id ? 'border-primary shadow-sm' : 'border-gray-200'}`}>
+                <img src={product.image} alt={product.name} className="h-24 w-20 flex-shrink-0 object-cover" />
+                <div className="min-w-0 flex-1">
+                  <h3 className="mt-1 font-serif text-xl text-main">{product.name}</h3>
+                  <p className="mt-1 text-sm text-muted">{formatRupiah(product.basePrice)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-3">
+                  <button onClick={() => startEditing(product)} className="border border-primary px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">Edit</button>
+                  <button onClick={() => handleDelete(product)} className="text-xs text-muted underline-offset-2 hover:text-primary hover:underline focus:outline-none focus-visible:underline">Hapus</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="border border-gray-200 bg-white p-5 sm:p-7 lg:sticky lg:top-24 lg:self-start">
+          <div className="mb-6 flex items-start justify-between gap-4 border-b border-gray-200 pb-5">
+            <div>
+            <p className="text-xs uppercase tracking-widest text-primary">{editingId ? 'Edit produk' : 'Produk baru'}</p>
+            <h2 className="mt-2 font-serif text-2xl text-main">Informasi produk</h2>
+            </div>
+            {editingId && (
+              <button onClick={startNewProduct} className="text-xs text-muted underline-offset-2 hover:text-primary hover:underline focus:outline-none focus-visible:underline">
+                Batal edit
+              </button>
+            )}
+          </div>
+
+          <form onSubmit={handleSave} className="space-y-5">
+            <label className="block text-sm text-main">
+              Nama produk
+              <input value={form.name} onChange={event => updateField('name', event.target.value)} className="mt-2 w-full border border-gray-200 px-4 py-3 font-light outline-none focus:border-primary" placeholder="Christmas Warmth" />
+            </label>
+            <div className="grid grid-cols-1">
+              <label className="block text-sm text-main">
+                Harga dasar
+                <div className="mt-2 flex border border-gray-200 bg-white focus-within:border-primary">
+                  <span className="flex items-center border-r border-gray-200 px-3 text-sm text-muted">Rp</span>
+                  <input type="text" inputMode="numeric" value={form.basePrice} onChange={event => updateField('basePrice', event.target.value)} className="min-w-0 w-full px-3 py-3 font-light outline-none" placeholder="150000 atau 150.000" />
+                </div>
+              </label>
+            </div>
+            <div className="space-y-3">
+              <label className="block text-sm text-main">
+                Gambar produk dari komputer
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleImageUpload}
+                  className="mt-2 block w-full border border-gray-200 bg-white px-3 py-3 text-sm text-muted file:mr-4 file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-primary-dark"
+                />
+              </label>
+              <p className="text-xs font-light leading-relaxed text-muted">
+                Pilih salah satu saja: JPG, PNG, WEBP, atau GIF maksimal 3 MB. Tidak perlu mengisi URL jika sudah upload file.
+              </p>
+              <label className="block text-sm text-main">
+                Atau gunakan URL gambar
+                <input value={form.image.startsWith('data:') ? '' : form.image} onChange={event => updateField('image', event.target.value)} className="mt-2 w-full border border-gray-200 px-4 py-3 font-light outline-none focus:border-primary" placeholder="https://..." />
+              </label>
+            </div>
+            {form.image && <img src={form.image} alt="Preview produk" className="aspect-[4/3] w-full object-cover" />}
+            <label className="block text-sm text-main">
+              Deskripsi
+              <textarea rows={3} value={form.description} onChange={event => updateField('description', event.target.value)} className="mt-2 w-full resize-none border border-gray-200 px-4 py-3 font-light outline-none focus:border-primary" />
+            </label>
+            <div className="grid grid-cols-1">
+              <label className="block text-sm text-main">
+                Berat
+                <input value={form.weight} onChange={event => updateField('weight', event.target.value)} className="mt-2 w-full border border-gray-200 px-4 py-3 font-light outline-none focus:border-primary" placeholder="± 1.0 kg" />
+              </label>
+            </div>
+            <label className="block text-sm text-main">
+              Isi produk <span className="font-light text-muted">(satu item per baris)</span>
+              <textarea rows={4} value={form.includes.join('\n')} onChange={event => updateField('includes', event.target.value.split('\n'))} className="mt-2 w-full resize-none border border-gray-200 px-4 py-3 font-light outline-none focus:border-primary" />
+            </label>
+
+            {notice && <p className="border-l-2 border-primary bg-base px-3 py-3 text-sm text-muted">{notice}</p>}
+            <button type="submit" disabled={isImageUploading} className="w-full bg-primary py-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-300">
+              {isImageUploading ? 'Menunggu upload gambar...' : 'Simpan produk'}
+            </button>
+          </form>
+        </section>
+      </div>
+    </div>
+  );
+};
+
+export default Admin;
