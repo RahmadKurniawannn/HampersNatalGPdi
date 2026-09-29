@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+
+const Cropper = lazy(() => import('react-easy-crop'));
 
 const formatRupiah = price => new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -7,6 +9,41 @@ const formatRupiah = price => new Intl.NumberFormat('id-ID', {
 }).format(Number(price) || 0);
 
 const parsePrice = price => Number(String(price).replace(/[^0-9]/g, '')) || 0;
+
+const createCroppedFile = async (imageUrl, area, originalFile) => {
+  const image = await new Promise((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error('Gambar tidak dapat dibaca.'));
+    element.src = imageUrl;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = area.width;
+  canvas.height = area.height;
+  canvas.getContext('2d').drawImage(
+    image,
+    area.x,
+    area.y,
+    area.width,
+    area.height,
+    0,
+    0,
+    area.width,
+    area.height,
+  );
+
+  const outputType = originalFile.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(result => {
+      if (result) resolve(result);
+      else reject(new Error('Hasil crop gagal dibuat.'));
+    }, outputType, 0.92);
+  });
+  const baseName = originalFile.name.replace(/\.[^.]+$/, '');
+  const extension = outputType === 'image/jpeg' ? 'jpg' : 'png';
+
+  return new File([blob], `${baseName}-crop.${extension}`, { type: outputType });
+};
 
 const emptyProduct = {
   name: '',
@@ -23,6 +60,15 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
   const [form, setForm] = useState(emptyProduct);
   const [notice, setNotice] = useState('');
   const [isImageUploading, setIsImageUploading] = useState(false);
+  const [cropSource, setCropSource] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedArea, setCroppedArea] = useState(null);
+
+  useEffect(() => {
+    if (!cropSource?.url) return undefined;
+    return () => URL.revokeObjectURL(cropSource.url);
+  }, [cropSource?.url]);
 
   const startNewProduct = () => {
     setEditingId(null);
@@ -46,6 +92,7 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
 
   const handleImageUpload = async event => {
     const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -58,14 +105,30 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
       return;
     }
 
+    setCropSource({ file, url: URL.createObjectURL(file) });
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedArea(null);
+    setNotice('Atur posisi gambar, lalu gunakan hasil crop sebelum menyimpan produk.');
+  };
+
+  const handleApplyCrop = async () => {
+    if (!cropSource || !croppedArea) return;
+
     setIsImageUploading(true);
-    setNotice(`Mengunggah ${file.name}...`);
+    setNotice('Menyiapkan gambar hasil crop...');
     try {
-      const imageUrl = await onUploadImage(file);
+      const croppedFile = await createCroppedFile(cropSource.url, croppedArea, cropSource.file);
+      if (croppedFile.size > 3 * 1024 * 1024) {
+        throw new Error('Ukuran hasil crop melebihi 3 MB. Kurangi ukuran gambar sumber.');
+      }
+      setNotice('Mengunggah gambar hasil crop...');
+      const imageUrl = await onUploadImage(croppedFile);
       updateField('image', imageUrl);
-      setNotice(`Gambar ${file.name} siap disimpan.`);
+      setCropSource(null);
+      setNotice('Gambar hasil crop siap disimpan.');
     } catch (error) {
-      setNotice(`Gambar gagal diunggah ke Supabase: ${error.message}`);
+      setNotice(`Gambar gagal diproses atau diunggah: ${error.message}`);
     } finally {
       setIsImageUploading(false);
     }
@@ -80,6 +143,11 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
 
     if (isImageUploading) {
       setNotice('Tunggu sampai upload gambar selesai.');
+      return;
+    }
+
+    if (cropSource) {
+      setNotice('Terapkan atau batalkan crop sebelum menyimpan produk.');
       return;
     }
 
@@ -266,14 +334,67 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
                 />
               </label>
               <p className="text-xs font-light leading-relaxed text-muted">
-                Pilih salah satu saja: JPG, PNG, WEBP, atau GIF maksimal 3 MB. Tidak perlu mengisi URL jika sudah upload file.
+                JPG, PNG, WEBP, atau GIF maksimal 3 MB. Atur crop sebelum gambar diunggah.
               </p>
+              {cropSource && (
+                <div className="space-y-4 border-y border-gray-200 py-5">
+                  <div>
+                    <h3 className="font-serif text-lg text-main">Atur gambar</h3>
+                    <p className="mt-1 text-xs font-light text-muted">Geser gambar untuk mengatur bagian yang terlihat.</p>
+                  </div>
+                  <div className="relative mx-auto aspect-[4/5] w-full max-w-[18rem] overflow-hidden bg-main">
+                    <Suspense fallback={<p className="p-4 text-sm text-white">Memuat editor gambar...</p>}>
+                      <Cropper
+                        image={cropSource.url}
+                        crop={crop}
+                        zoom={zoom}
+                        aspect={4 / 5}
+                        keyboardStep={1}
+                        onCropChange={setCrop}
+                        onZoomChange={setZoom}
+                        onCropComplete={(_, area) => setCroppedArea(area)}
+                      />
+                    </Suspense>
+                  </div>
+                  <label className="block text-sm text-main">
+                    Perbesar gambar
+                    <input
+                      type="range"
+                      min="1"
+                      max="3"
+                      step="0.01"
+                      value={zoom}
+                      onChange={event => setZoom(Number(event.target.value))}
+                      className="mt-3 block w-full accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      aria-label="Perbesar atau perkecil gambar"
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCropSource(null)}
+                      disabled={isImageUploading}
+                      className="min-h-11 border border-gray-300 px-3 py-2.5 text-sm font-medium text-main transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleApplyCrop}
+                      disabled={!croppedArea || isImageUploading}
+                      className="min-h-11 bg-primary px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
+                      {isImageUploading ? 'Mengunggah...' : 'Gunakan crop'}
+                    </button>
+                  </div>
+                </div>
+              )}
               <label className="block text-sm text-main">
                 Atau gunakan URL gambar
                 <input value={form.image.startsWith('data:') ? '' : form.image} onChange={event => updateField('image', event.target.value)} className="mt-2 w-full border border-gray-200 px-4 py-3 font-light outline-none focus:border-primary" placeholder="https://..." />
               </label>
             </div>
-            {form.image && <img src={form.image} alt="Preview produk" className="aspect-[4/3] w-full object-cover" />}
+            {form.image && !cropSource && <img src={form.image} alt="Preview produk" className="aspect-[4/5] w-full object-cover" />}
             <label className="block text-sm text-main">
               Deskripsi
               <textarea rows={3} value={form.description} onChange={event => updateField('description', event.target.value)} className="mt-2 w-full resize-none border border-gray-200 px-4 py-3 font-light outline-none focus:border-primary" />
@@ -290,8 +411,8 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
             </label>
 
             {notice && <p className="border-l-2 border-primary bg-base px-3 py-3 text-sm text-muted">{notice}</p>}
-            <button type="submit" disabled={isImageUploading} className="w-full bg-primary py-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-300">
-              {isImageUploading ? 'Menunggu upload gambar...' : 'Simpan produk'}
+            <button type="submit" disabled={isImageUploading || Boolean(cropSource)} className="w-full bg-primary py-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-300">
+              {isImageUploading ? 'Menunggu upload gambar...' : cropSource ? 'Selesaikan crop gambar dulu' : 'Simpan produk'}
             </button>
           </form>
         </section>

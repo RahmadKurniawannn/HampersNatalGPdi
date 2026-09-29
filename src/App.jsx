@@ -11,17 +11,22 @@ import AdminAuth from './pages/AdminAuth';
 import { products as initialProducts } from './data/products';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 
-const mapDatabaseProduct = product => ({
-  id: product.id,
-  name: product.name,
-  category: product.category,
-  basePrice: product.base_price,
-  image: product.image,
-  description: product.description,
-  weight: product.weight,
-  packaging: product.packaging || '',
-  includes: product.includes || [],
-});
+const mapDatabaseProduct = product => {
+  const initialProduct = initialProducts.find(initial => initial.id === product.id);
+  const isLocalAsset = /^(?:\.\/|\/)?assets\//.test(product.image || '');
+
+  return {
+    id: product.id,
+    name: product.name,
+    category: product.category,
+    basePrice: product.base_price,
+    image: isLocalAsset ? initialProduct?.image || product.image : product.image || initialProduct?.image,
+    description: product.description,
+    weight: product.weight,
+    packaging: product.packaging || '',
+    includes: product.includes || [],
+  };
+};
 
 const toDatabaseProduct = product => ({
   id: product.id,
