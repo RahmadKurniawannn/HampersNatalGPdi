@@ -47,19 +47,15 @@ function App() {
   const [session, setSession] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState(supabase ? [] : initialProducts);
   const [adminUsers, setAdminUsers] = useState([]);
 
   useEffect(() => {
     if (!supabase) return undefined;
 
     supabase.from('products').select('*').order('id').then(({ data, error }) => {
-      if (error || !data?.length) return;
-      const databaseProducts = data.map(mapDatabaseProduct);
-      const databaseById = new Map(databaseProducts.map(product => [product.id, product]));
-      const mergedProducts = initialProducts.map(product => databaseById.get(product.id) || product);
-      const customProducts = databaseProducts.filter(product => !initialProducts.some(initial => initial.id === product.id));
-      setProducts([...mergedProducts, ...customProducts]);
+      if (error) return;
+      setProducts((data || []).map(mapDatabaseProduct));
     });
   }, []);
 
@@ -83,10 +79,6 @@ function App() {
       setIsAdmin(adminAccess);
 
       if (adminAccess) {
-        const { data: existingProducts } = await supabase.from('products').select('id').limit(1);
-        if (!existingProducts?.length) {
-          await supabase.from('products').upsert(initialProducts.map(toDatabaseProduct));
-        }
         const { data: users } = await supabase
           .from('profiles')
           .select('id, email, role, created_at')
