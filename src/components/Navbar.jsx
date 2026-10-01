@@ -37,7 +37,7 @@ const Navbar = ({ cartCount = 0, onNavigate, currentView, onCartOpen, isAuthenti
                   : 'border-transparent text-main hover:border-primary hover:text-primary'
               } focus:outline-none focus-visible:underline`}
             >
-              Hampers Natal
+              Katalog Produk
             </button>
             <button
               onClick={(e) => handleNav(e, 'home')}
@@ -102,7 +102,7 @@ const Navbar = ({ cartCount = 0, onNavigate, currentView, onCartOpen, isAuthenti
               onClick={(e) => handleNav(e, 'catalog')}
               className="text-left text-lg text-main hover:text-primary transition-colors focus:outline-none"
             >
-              Hampers Natal
+              Katalog Produk
             </button>
             <button
               onClick={(e) => handleNav(e, 'home')}

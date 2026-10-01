@@ -3,11 +3,15 @@ import { useState } from 'react';
 const Catalog = ({ products, onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('featured');
+  const [selectedCategory, setSelectedCategory] = useState('Semua kategori');
+  const categories = [...new Set(products.map(product => product.category || 'Hampers'))];
 
   const filtered = products
     .filter(product => {
       const query = searchQuery.trim().toLowerCase();
-      return !query || `${product.name} ${product.description}`.toLowerCase().includes(query);
+      const matchesSearch = !query || `${product.name} ${product.description} ${product.category || 'Hampers'}`.toLowerCase().includes(query);
+      const matchesCategory = selectedCategory === 'Semua kategori' || (product.category || 'Hampers') === selectedCategory;
+      return matchesSearch && matchesCategory;
     })
     .sort((first, second) => {
       if (sortBy === 'price-low') return first.basePrice - second.basePrice;
@@ -32,18 +36,19 @@ const Catalog = ({ products, onNavigate }) => {
         <nav className="text-xs text-muted mb-6 flex items-center gap-2">
           <button
             onClick={() => onNavigate('home')}
-            className="hover:text-primary transition-colors focus:outline-none focus-visible:underline"
+            className="inline-flex min-h-10 items-center gap-2 border border-gray-300 px-3 text-sm text-main transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            Beranda
+            <span aria-hidden="true">&larr;</span>
+            Kembali ke beranda
           </button>
           <span>/</span>
-          <span className="text-main">Hampers Natal</span>
+          <span className="text-main">Katalog</span>
         </nav>
         <div>
           <div>
-            <h1 className="font-serif text-4xl sm:text-5xl text-main">Koleksi Natal 2026</h1>
+            <h1 className="font-serif text-4xl sm:text-5xl text-main">Katalog Produk</h1>
             <p className="mt-3 text-muted font-light max-w-xl">
-              Temukan bingkisan Natal yang tepat untuk orang-orang berarti.
+              Pilih hampers, kue, dan paket yang sesuai untuk dibagikan.
             </p>
           </div>
         </div>
@@ -51,19 +56,32 @@ const Catalog = ({ products, onNavigate }) => {
 
       <div className="max-w-7xl mx-auto px-5 sm:px-8 py-16">
         <div className="mb-12 flex flex-col gap-4 border-b border-gray-200 pb-6 lg:flex-row lg:items-center lg:justify-between">
-          <label className="relative block w-full lg:max-w-sm">
-            <span className="sr-only">Cari hampers</span>
+          <div className="flex w-full flex-col gap-3 sm:flex-row lg:max-w-2xl">
+            <label className="relative block w-full">
+            <span className="sr-only">Cari produk</span>
             <input
               type="search"
               value={searchQuery}
               onChange={event => setSearchQuery(event.target.value)}
-              placeholder="Cari hampers..."
+              placeholder="Cari produk..."
               className="w-full border border-gray-300 bg-white px-4 py-3 pr-10 text-sm text-main outline-none transition-colors placeholder:text-gray-400 focus:border-primary"
             />
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted" aria-hidden>⌕</span>
           </label>
+            <label className="block shrink-0">
+              <span className="sr-only">Filter kategori</span>
+              <select
+                value={selectedCategory}
+                onChange={event => setSelectedCategory(event.target.value)}
+                className="w-full border border-gray-300 bg-white px-3 py-3 text-sm text-main outline-none focus:border-primary sm:w-auto"
+              >
+                <option value="Semua kategori">Semua kategori</option>
+                {categories.map(category => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </label>
+          </div>
           <div className="flex items-center justify-between gap-4 sm:justify-end">
-            <p className="text-sm text-muted">{filtered.length} hampers ditemukan</p>
+            <p className="text-sm text-muted">{filtered.length} produk ditemukan</p>
             <label className="flex items-center gap-2 text-sm text-muted">
               <span className="sr-only">Urutkan produk</span>
               <select
@@ -81,7 +99,7 @@ const Catalog = ({ products, onNavigate }) => {
 
         {filtered.length === 0 && (
           <div className="py-24 text-center">
-            <p className="font-serif text-2xl text-main">Hampers tidak ditemukan</p>
+            <p className="font-serif text-2xl text-main">Produk tidak ditemukan</p>
             <p className="mt-3 text-sm font-light text-muted">Coba gunakan kata kunci lain.</p>
             <button
               onClick={() => setSearchQuery('')}
@@ -107,6 +125,7 @@ const Catalog = ({ products, onNavigate }) => {
                 />
               </div>
               <div className="bg-white flex flex-col justify-center px-10 py-12 lg:px-16">
+                <p className="mb-3 text-sm text-primary">{featured.category || 'Hampers'}</p>
                 <h2 className="font-serif text-3xl sm:text-4xl text-main mb-4 leading-snug">
                   {featured.name}
                 </h2>
@@ -140,6 +159,7 @@ const Catalog = ({ products, onNavigate }) => {
                     <h3 className="font-serif text-xl text-main mb-1 group-hover:text-primary transition-colors">
                       {product.name}
                     </h3>
+                    <p className="mb-2 text-xs text-primary">{product.category || 'Hampers'}</p>
                     <p className="text-sm text-muted font-light mb-3 line-clamp-2">{product.description}</p>
                     <p className="text-base font-medium text-main">{formatPrice(product.basePrice)}</p>
                   </button>

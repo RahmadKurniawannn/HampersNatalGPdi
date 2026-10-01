@@ -6,6 +6,7 @@ export const products = [
   {
     id: 1,
     name: 'Christmas Warmth',
+    category: 'Hampers',
     basePrice: 150000,
     image: joyImage,
     description: 'Hampers personal dengan sentuhan kehangatan Natal, cocok untuk sahabat atau kerabat dekat.',
@@ -21,6 +22,7 @@ export const products = [
   {
     id: 2,
     name: 'Christmas Blessing',
+    category: 'Hampers',
     basePrice: 200000,
     image: noelImage,
     description: 'Bingkisan penuh berkat untuk dinikmati bersama keluarga di malam Natal.',
@@ -36,6 +38,7 @@ export const products = [
   {
     id: 3,
     name: 'Christmas Premium',
+    category: 'Hampers',
     basePrice: 350000,
     image: santaImage,
     description: 'Koleksi mewah dengan item eksklusif untuk kesan yang tak terlupakan.',
@@ -52,6 +55,7 @@ export const products = [
   {
     id: 4,
     name: 'Corporate Joy',
+    category: 'Hampers',
     basePrice: 400000,
     image: joyImage,
     description: 'Bingkisan elegan yang dirancang khusus untuk mengapresiasi mitra bisnis atau rekan kerja Anda.',
@@ -67,6 +71,7 @@ export const products = [
   {
     id: 5,
     name: 'Holy Night Box',
+    category: 'Hampers',
     basePrice: 125000,
     image: noelImage,
     description: 'Hampers simpel dan manis untuk memberikan kejutan kecil di hari Natal.',

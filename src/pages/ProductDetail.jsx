@@ -57,9 +57,10 @@ const ProductDetail = ({ productId, products, onNavigate, onAddToCart, onOrderNo
           <span aria-hidden>/</span>
           <button
             onClick={() => onNavigate('catalog')}
-            className="hover:text-primary transition-colors focus:outline-none focus-visible:underline"
+            className="inline-flex min-h-10 items-center gap-2 border border-gray-300 px-3 text-sm text-main transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            Hampers Natal
+            <span aria-hidden="true">&larr;</span>
+            Kembali ke katalog
           </button>
           <span aria-hidden>/</span>
           <span className="text-main">{product.name}</span>
@@ -88,6 +89,7 @@ const ProductDetail = ({ productId, products, onNavigate, onAddToCart, onOrderNo
           {/* RIGHT: content (7 cols) */}
           <div className="lg:col-span-7 flex flex-col">
 
+            <p className="mb-3 text-sm text-primary">{product.category || 'Hampers'}</p>
             <h1 className="font-serif text-4xl sm:text-5xl text-main leading-tight mb-4">
               {product.name}
             </h1>
@@ -153,7 +155,7 @@ const ProductDetail = ({ productId, products, onNavigate, onAddToCart, onOrderNo
             {/* Price breakdown */}
             <div className="mb-6 space-y-2 text-sm">
               <div className="flex justify-between text-muted font-light">
-                <span>Hampers</span>
+                <span>{product.name}</span>
                 <span>{fmt(product.basePrice)}</span>
               </div>
               <div className="flex justify-between text-muted font-light">

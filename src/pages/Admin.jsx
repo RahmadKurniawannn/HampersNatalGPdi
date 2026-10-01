@@ -47,7 +47,7 @@ const createCroppedFile = async (imageUrl, area, originalFile) => {
 
 const emptyProduct = {
   name: '',
-  category: '',
+  category: 'Hampers',
   basePrice: 0,
   image: '',
   description: '',
@@ -80,6 +80,7 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
     setEditingId(product.id);
     setForm({
       ...product,
+      category: product.category || 'Hampers',
       includes: [...product.includes],
     });
     setNotice('');
@@ -138,6 +139,7 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
     event.preventDefault();
     const missingFields = [];
     if (!form.name.trim()) missingFields.push('nama');
+    if (!form.category.trim()) missingFields.push('kategori');
     if (!form.image?.trim()) missingFields.push('gambar lokal atau URL');
     if (parsePrice(form.basePrice) <= 0) missingFields.push('harga');
 
@@ -161,6 +163,7 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
         ...form,
         id: editingId ?? Date.now(),
         name: form.name.trim(),
+        category: form.category.trim(),
         basePrice: parsePrice(form.basePrice),
         includes: form.includes.filter(item => item.trim()),
       });
@@ -285,6 +288,7 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
                 <img src={product.image} alt={product.name} className="h-24 w-20 flex-shrink-0 object-cover" />
                 <div className="min-w-0 flex-1">
                   <h3 className="mt-1 font-serif text-xl text-main">{product.name}</h3>
+                  <p className="mt-1 text-xs text-muted">{product.category || 'Hampers'}</p>
                   <p className="mt-1 text-sm text-muted">{formatRupiah(product.basePrice)}</p>
                 </div>
                 <div className="flex flex-col items-end gap-3">
@@ -313,6 +317,15 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
             <label className="block text-sm text-main">
               Nama produk
               <input value={form.name} onChange={event => updateField('name', event.target.value)} className="mt-2 w-full border border-gray-200 px-4 py-3 font-light outline-none focus:border-primary" placeholder="Christmas Warmth" />
+            </label>
+            <label className="block text-sm text-main">
+              Kategori
+              <input list="product-categories" value={form.category} onChange={event => updateField('category', event.target.value)} className="mt-2 w-full border border-gray-200 px-4 py-3 font-light outline-none focus:border-primary" placeholder="Kue" />
+              <datalist id="product-categories">
+                {[...new Set(['Hampers', 'Kue', ...products.map(product => product.category).filter(Boolean)])].map(category => (
+                  <option key={category} value={category} />
+                ))}
+              </datalist>
             </label>
             <div className="grid grid-cols-1">
               <label className="block text-sm text-main">

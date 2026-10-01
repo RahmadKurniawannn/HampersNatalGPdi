@@ -18,7 +18,7 @@ const mapDatabaseProduct = product => {
   return {
     id: product.id,
     name: product.name,
-    category: product.category,
+    category: product.category || 'Hampers',
     basePrice: product.base_price,
     image: isLocalAsset ? initialProduct?.image || product.image : product.image || initialProduct?.image,
     description: product.description,
@@ -31,7 +31,7 @@ const mapDatabaseProduct = product => {
 const toDatabaseProduct = product => ({
   id: product.id,
   name: product.name,
-  category: product.category,
+  category: product.category || 'Hampers',
   base_price: product.basePrice,
   image: product.image,
   description: product.description,
