@@ -1,11 +1,6 @@
 import logo from '../assets/GPDI.png';
 
-const Footer = ({ onNavigate }) => {
-  const handleHowToOrder = () => {
-    onNavigate('home');
-    setTimeout(() => document.getElementById('cara-pesan')?.scrollIntoView({ behavior: 'smooth' }), 0);
-  };
-
+const Footer = ({ onNavigate, onNavigateToHowToOrder }) => {
   return (
     <footer className="bg-primary-dark pt-12 pb-8">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
@@ -48,7 +43,7 @@ const Footer = ({ onNavigate }) => {
             <ul className="space-y-3 text-sm font-light text-red-100/65">
               <li>
                 <button
-                  onClick={handleHowToOrder}
+                  onClick={() => onNavigate('home')}
                   className="hover:text-white transition-colors focus:outline-none focus-visible:underline"
                 >
                   Beranda
@@ -64,7 +59,7 @@ const Footer = ({ onNavigate }) => {
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('home')}
+                  onClick={onNavigateToHowToOrder}
                   className="hover:text-white transition-colors focus:outline-none focus-visible:underline"
                 >
                   Cara Pesan

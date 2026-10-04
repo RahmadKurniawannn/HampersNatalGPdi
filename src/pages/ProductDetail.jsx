@@ -1,18 +1,13 @@
 import { useState, useEffect } from 'react';
 
 const ProductDetail = ({ productId, products, onNavigate, onAddToCart, onOrderNow }) => {
-  const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [greetingFrom, setGreetingFrom] = useState('');
   const [greetingTo, setGreetingTo] = useState('');
   const [isAdded, setIsAdded] = useState(false);
+  const product = products.find(item => item.id === productId) || null;
 
   useEffect(() => {
-    const found = products.find(p => p.id === productId);
-    setProduct(found || null);
-    setQuantity(1);
-    setGreetingFrom('');
-    setGreetingTo('');
     window.scrollTo(0, 0);
   }, [productId]);
 

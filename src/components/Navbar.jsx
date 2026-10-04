@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import logo from '../assets/GPDI.png';
 
-const Navbar = ({ cartCount = 0, onNavigate, currentView, onCartOpen, isAuthenticated, onLogout }) => {
+const Navbar = ({ cartCount = 0, onNavigate, onNavigateToHowToOrder, currentView, onCartOpen, isAuthenticated, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleNav = (e, view) => {
@@ -40,7 +40,7 @@ const Navbar = ({ cartCount = 0, onNavigate, currentView, onCartOpen, isAuthenti
               Katalog Produk
             </button>
             <button
-              onClick={(e) => handleNav(e, 'home')}
+              onClick={() => onNavigateToHowToOrder()}
               className={`border-b-2 pb-1 text-sm transition-colors ${currentView === 'home' ? 'border-primary font-medium text-primary' : 'border-transparent text-main hover:border-primary hover:text-primary'} focus:outline-none focus-visible:underline`}
             >
               Cara Pesan
@@ -105,7 +105,10 @@ const Navbar = ({ cartCount = 0, onNavigate, currentView, onCartOpen, isAuthenti
               Katalog Produk
             </button>
             <button
-              onClick={(e) => handleNav(e, 'home')}
+              onClick={() => {
+                onNavigateToHowToOrder();
+                setIsOpen(false);
+              }}
               className="text-left text-lg text-main hover:text-primary transition-colors focus:outline-none"
             >
               Cara Pesan

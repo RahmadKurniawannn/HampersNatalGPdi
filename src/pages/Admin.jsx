@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 
 const Cropper = lazy(() => import('react-easy-crop'));
 
@@ -55,15 +55,19 @@ const emptyProduct = {
   includes: [],
 };
 
-const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSaveProduct, onDeleteProduct, onUploadImage, onLogout }) => {
+const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAdminUsers, onNavigate, onSaveProduct, onDeleteProduct, onUploadImage, onLogout }) => {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyProduct);
   const [notice, setNotice] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshingAdminUsers, setIsRefreshingAdminUsers] = useState(false);
+  const [refreshAdminUsersError, setRefreshAdminUsersError] = useState('');
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [cropSource, setCropSource] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedArea, setCroppedArea] = useState(null);
+  const isSavingRef = useRef(false);
 
   useEffect(() => {
     if (!cropSource?.url) return undefined;
@@ -137,6 +141,7 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
 
   const handleSave = async event => {
     event.preventDefault();
+    if (isSavingRef.current) return;
     const missingFields = [];
     if (!form.name.trim()) missingFields.push('nama');
     if (!form.category.trim()) missingFields.push('kategori');
@@ -158,7 +163,10 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
       return;
     }
 
+    isSavingRef.current = true;
+    setIsSaving(true);
     try {
+      const isEditing = Boolean(editingId);
       await onSaveProduct({
         ...form,
         id: editingId ?? Date.now(),
@@ -167,9 +175,25 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
         basePrice: parsePrice(form.basePrice),
         includes: form.includes.filter(item => item.trim()),
       });
-      setNotice(editingId ? 'Produk berhasil diperbarui di Supabase.' : 'Produk baru berhasil ditambahkan ke Supabase.');
+      if (!isEditing) setForm(emptyProduct);
+      setNotice(isEditing ? 'Produk berhasil diperbarui di Supabase.' : 'Produk baru berhasil ditambahkan ke Supabase.');
     } catch (error) {
       setNotice(`Produk gagal disimpan: ${error.message}`);
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
+  };
+
+  const handleRefreshAdminUsers = async () => {
+    setIsRefreshingAdminUsers(true);
+    setRefreshAdminUsersError('');
+    try {
+      await onRefreshAdminUsers();
+    } catch (error) {
+      setRefreshAdminUsersError(`Daftar akun gagal diperbarui: ${error.message}`);
+    } finally {
+      setIsRefreshingAdminUsers(false);
     }
   };
 
@@ -188,29 +212,32 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
   return (
     <div className="min-h-screen bg-base">
       <div className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-10 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-primary">Panel pengelola</p>
-            <h1 className="mt-3 font-serif text-4xl text-main sm:text-5xl">Kelola katalog</h1>
-            <p className="mt-3 max-w-xl text-sm font-light leading-relaxed text-muted">
-              Atur tampilan produk yang muncul di Home, katalog, dan halaman detail dari satu tempat.
-            </p>
-            <p className="mt-4 text-xs text-muted">Perubahan disimpan ke Supabase setelah tombol simpan berhasil.</p>
+        <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-widest text-primary">Panel pengelola</p>
+              <h1 className="mt-3 font-serif text-4xl text-main sm:text-5xl">Kelola katalog</h1>
+              <p className="mt-3 max-w-xl text-sm font-light leading-relaxed text-muted">
+                Atur tampilan produk yang muncul di Home, katalog, dan halaman detail dari satu tempat.
+              </p>
+              <p className="mt-4 text-xs text-muted">Perubahan disimpan ke Supabase setelah tombol simpan berhasil.</p>
+            </div>
+            <div className="flex items-center gap-5 self-start lg:self-auto">
+              <button
+                onClick={() => onNavigate('home')}
+                className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                Lihat website
+              </button>
+              <button
+                onClick={onLogout}
+                className="text-sm text-muted underline-offset-4 hover:text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                Keluar
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-5 self-start lg:self-auto">
-            <button
-              onClick={() => onNavigate('home')}
-              className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              Lihat website
-            </button>
-            <button
-              onClick={onLogout}
-              className="text-sm text-muted underline-offset-4 hover:text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              Keluar
-            </button>
-          </div>
+          {logoutError && <p className="mt-5 border-l-2 border-red-700 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{logoutError}</p>}
         </div>
       </div>
 
@@ -223,17 +250,21 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
               <p className="mt-2 text-sm font-light text-muted">Daftar ini diambil langsung dari profil Supabase.</p>
             </div>
             <button
-              onClick={onRefreshAdminUsers}
-              className="self-start border border-gray-300 px-4 py-2.5 text-sm font-medium text-main transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:self-auto"
+              onClick={handleRefreshAdminUsers}
+              disabled={isRefreshingAdminUsers}
+              className="self-start border border-gray-300 px-4 py-2.5 text-sm font-medium text-main transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
             >
-              Refresh akun
+              {isRefreshingAdminUsers ? 'Memuat...' : 'Refresh akun'}
             </button>
           </div>
 
           <div className="mt-6 overflow-x-auto border-t border-gray-200">
-            {adminUsers.length === 0 ? (
+            {(adminUsersError || refreshAdminUsersError) && (
+              <p className="py-4 text-sm text-red-800" role="alert">{refreshAdminUsersError || adminUsersError}</p>
+            )}
+            {adminUsers.length === 0 && !adminUsersError && !refreshAdminUsersError ? (
               <p className="py-6 text-sm font-light text-muted">Belum ada profil yang bisa ditampilkan.</p>
-            ) : (
+            ) : adminUsers.length > 0 ? (
               <table className="w-full min-w-[34rem] text-left text-sm">
                 <thead className="text-xs uppercase tracking-wider text-muted">
                   <tr>
@@ -258,7 +289,7 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
                   ))}
                 </tbody>
               </table>
-            )}
+            ) : null}
           </div>
         </section>
 
@@ -424,8 +455,8 @@ const Admin = ({ products, adminUsers, onRefreshAdminUsers, onNavigate, onSavePr
             </label>
 
             {notice && <p className="border-l-2 border-primary bg-base px-3 py-3 text-sm text-muted">{notice}</p>}
-            <button type="submit" disabled={isImageUploading || Boolean(cropSource)} className="w-full bg-primary py-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-300">
-              {isImageUploading ? 'Menunggu upload gambar...' : cropSource ? 'Selesaikan crop gambar dulu' : 'Simpan produk'}
+            <button type="submit" disabled={isSaving || isImageUploading || Boolean(cropSource)} className="w-full bg-primary py-3.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-300">
+              {isSaving ? 'Menyimpan...' : isImageUploading ? 'Menunggu upload gambar...' : cropSource ? 'Selesaikan crop gambar dulu' : 'Simpan produk'}
             </button>
           </form>
         </section>

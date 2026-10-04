@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
-const AdminAuth = ({ mode = 'login', onNavigate, hasSession = false }) => {
+const AdminAuth = ({ mode = 'login', onNavigate, hasSession = false, authError = '' }) => {
   const [isRegistering, setIsRegistering] = useState(mode === 'register');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,9 +32,16 @@ const AdminAuth = ({ mode = 'login', onNavigate, hasSession = false }) => {
     }
 
     setIsLoading(true);
-    const result = isRegistering
-      ? await supabase.auth.signUp({ email, password })
-      : await supabase.auth.signInWithPassword({ email, password });
+    let result;
+    try {
+      result = isRegistering
+        ? await supabase.auth.signUp({ email, password })
+        : await supabase.auth.signInWithPassword({ email, password });
+    } catch (requestError) {
+      setError(`Permintaan autentikasi gagal: ${requestError.message}`);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(false);
 
     if (result.error) {
@@ -73,9 +80,15 @@ const AdminAuth = ({ mode = 'login', onNavigate, hasSession = false }) => {
           </div>
         )}
 
-        {hasSession && isSupabaseConfigured && (
+        {hasSession && isSupabaseConfigured && !authError && (
           <div className="mt-6 border-l-2 border-primary bg-base px-4 py-3 text-sm leading-relaxed text-muted">
             Akun ini belum memiliki akses admin. Minta pemilik Supabase mengubah role akun menjadi <strong>admin</strong>.
+          </div>
+        )}
+
+        {authError && (
+          <div className="mt-6 border-l-2 border-red-700 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
+            {authError}
           </div>
         )}
 

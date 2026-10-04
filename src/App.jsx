@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -47,52 +47,129 @@ function App() {
   const [session, setSession] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+  const [authError, setAuthError] = useState('');
+  const [logoutError, setLogoutError] = useState('');
   const [products, setProducts] = useState(supabase ? [] : initialProducts);
+  const [productsLoading, setProductsLoading] = useState(Boolean(supabase));
+  const [productsError, setProductsError] = useState('');
   const [adminUsers, setAdminUsers] = useState([]);
+  const [adminUsersError, setAdminUsersError] = useState('');
+  const productChangesDuringLoad = useRef(new Map());
+  const hasLoadedProducts = useRef(false);
+
+  const loadProducts = useCallback(async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase.from('products').select('*').order('id');
+      if (error) {
+        throw error;
+      }
+
+      const loadedProducts = new Map((data || []).map(product => {
+        const mappedProduct = mapDatabaseProduct(product);
+        return [mappedProduct.id, mappedProduct];
+      }));
+      productChangesDuringLoad.current.forEach((product, productId) => {
+        if (product) loadedProducts.set(productId, product);
+        else loadedProducts.delete(productId);
+      });
+      productChangesDuringLoad.current.clear();
+      hasLoadedProducts.current = true;
+      setProducts([...loadedProducts.values()]);
+    } catch (error) {
+      console.error('Gagal memuat produk dari Supabase:', error);
+      setProductsError('Produk tidak dapat dimuat. Periksa koneksi dan konfigurasi Supabase, lalu coba lagi.');
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!supabase) return undefined;
+    const timer = window.setTimeout(loadProducts, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadProducts]);
 
-    supabase.from('products').select('*').order('id').then(({ data, error }) => {
-      if (error) return;
-      setProducts((data || []).map(mapDatabaseProduct));
-    });
-  }, []);
+  const retryProducts = () => {
+    setProductsLoading(true);
+    setProductsError('');
+    loadProducts();
+  };
 
   useEffect(() => {
     if (!supabase) return undefined;
 
     const loadAdminSession = async nextSession => {
       setSession(nextSession);
+      setAuthError('');
       if (!nextSession) {
         setIsAdmin(false);
+        setAdminUsers([]);
+        setAdminUsersError('');
         setAuthReady(true);
         return;
       }
 
-      const { data: profile } = await supabase
+      setAuthReady(false);
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', nextSession.user.id)
         .maybeSingle();
+      if (profileError) {
+        console.error('Gagal memverifikasi akses admin:', profileError);
+        setIsAdmin(false);
+        setAdminUsers([]);
+        setAuthError('Akses admin tidak dapat diverifikasi. Periksa koneksi dan konfigurasi Supabase, lalu coba lagi.');
+        setAuthReady(true);
+        return;
+      }
+
       const adminAccess = profile?.role === 'admin';
       setIsAdmin(adminAccess);
 
       if (adminAccess) {
-        const { data: users } = await supabase
-          .from('profiles')
-          .select('id, email, role, created_at')
-          .order('created_at', { ascending: false });
-        setAdminUsers(users || []);
+        try {
+          const { data: users, error: usersError } = await supabase
+            .from('profiles')
+            .select('id, email, role, created_at')
+            .order('created_at', { ascending: false });
+          if (usersError) {
+            console.error('Gagal memuat daftar akun admin:', usersError);
+            setAdminUsersError('Daftar akun tidak dapat dimuat. Periksa koneksi lalu coba refresh.');
+          } else {
+            setAdminUsersError('');
+          }
+          setAdminUsers(users || []);
+        } catch (usersError) {
+          console.error('Gagal memuat daftar akun admin:', usersError);
+          setAdminUsersError('Daftar akun tidak dapat dimuat. Periksa koneksi lalu coba refresh.');
+          setAdminUsers([]);
+        }
+      } else {
+        setAdminUsers([]);
+        setAdminUsersError('');
       }
       setAuthReady(true);
     };
 
-    supabase.auth.getSession().then(({ data }) => loadAdminSession(data.session));
+    let authLoadTimer;
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      clearTimeout(authLoadTimer);
+      authLoadTimer = setTimeout(() => {
+        loadAdminSession(nextSession).catch(error => {
+          console.error('Gagal memuat sesi admin:', error);
+          setIsAdmin(false);
+          setAdminUsers([]);
+          setAuthError('Sesi admin tidak dapat dimuat. Periksa koneksi lalu coba lagi.');
+          setAuthReady(true);
+        });
+      }, 0);
+    });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => loadAdminSession(nextSession));
-
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      clearTimeout(authLoadTimer);
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const handleNavigate = (viewName, params = {}) => {
@@ -100,11 +177,29 @@ function App() {
     window.scrollTo(0, 0);
   };
 
+  const handleNavigateToHowToOrder = () => {
+    setCurrentView({ name: 'home' });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document.getElementById('cara-pesan')?.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  };
+
   const handleLogout = async () => {
-    if (supabase) await supabase.auth.signOut();
-    setSession(null);
-    setIsAdmin(false);
-    handleNavigate('home');
+    setLogoutError('');
+    try {
+      if (supabase) {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      }
+      setSession(null);
+      setIsAdmin(false);
+      handleNavigate('home');
+    } catch (error) {
+      console.error('Gagal keluar dari akun admin:', error);
+      setLogoutError(`Gagal keluar: ${error.message}`);
+    }
   };
 
   const handleAddToCart = (item) => {
@@ -142,6 +237,9 @@ function App() {
       const exists = prev.some(item => item.id === product.id);
       return exists ? prev.map(item => item.id === product.id ? product : item) : [...prev, product];
     });
+    if (!hasLoadedProducts.current) {
+      productChangesDuringLoad.current.set(product.id, product);
+    }
   };
 
   const handleDeleteProduct = async productId => {
@@ -152,6 +250,9 @@ function App() {
       throw new Error('Supabase belum dikonfigurasi. Produk tidak dihapus.');
     }
     setProducts(prev => prev.filter(product => product.id !== productId));
+    if (!hasLoadedProducts.current) {
+      productChangesDuringLoad.current.set(productId, null);
+    }
   };
 
   const handleUploadImage = async file => {
@@ -168,12 +269,17 @@ function App() {
   };
 
   const handleRefreshAdminUsers = async () => {
-    if (!supabase) return;
-    const { data } = await supabase
+    if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, email, role, created_at')
       .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Gagal memuat daftar akun admin:', error);
+      throw error;
+    }
     setAdminUsers(data || []);
+    setAdminUsersError('');
   };
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -187,6 +293,7 @@ function App() {
         return <Catalog products={products} onNavigate={handleNavigate} />;
       case 'detail':
         return <ProductDetail 
+          key={currentView.id}
           productId={currentView.id} 
           products={products}
           onNavigate={handleNavigate} 
@@ -197,9 +304,9 @@ function App() {
         return <OrderDetail items={cartItems} total={cartTotal} onNavigate={handleNavigate} />;
       case 'admin':
         if (!authReady || !session || !isAdmin) {
-          return <AdminAuth onNavigate={handleNavigate} hasSession={Boolean(session)} />;
+          return <AdminAuth onNavigate={handleNavigate} hasSession={Boolean(session)} authError={authError} />;
         }
-        return <Admin products={products} adminUsers={adminUsers} onRefreshAdminUsers={handleRefreshAdminUsers} onNavigate={handleNavigate} onSaveProduct={handleSaveProduct} onDeleteProduct={handleDeleteProduct} onUploadImage={handleUploadImage} onLogout={handleLogout} />;
+        return <Admin products={products} adminUsers={adminUsers} adminUsersError={adminUsersError} logoutError={logoutError} onRefreshAdminUsers={handleRefreshAdminUsers} onNavigate={handleNavigate} onSaveProduct={handleSaveProduct} onDeleteProduct={handleDeleteProduct} onUploadImage={handleUploadImage} onLogout={handleLogout} />;
       case 'admin-register':
         return <AdminAuth mode="register" onNavigate={handleNavigate} />;
       default:
@@ -212,6 +319,7 @@ function App() {
       <Navbar 
         cartCount={cartCount}
         onNavigate={handleNavigate} 
+        onNavigateToHowToOrder={handleNavigateToHowToOrder}
         currentView={currentView.name} 
         onCartOpen={() => setIsCartOpen(true)}
         isAuthenticated={Boolean(session && isAdmin)}
@@ -219,10 +327,22 @@ function App() {
       />
       
       <main className="flex-grow">
+        {(productsLoading || productsError) && (
+          <div className="border-b border-gray-200 bg-white px-5 py-3 text-center text-sm text-muted sm:px-8" role="status">
+            {productsError ? (
+              <span>
+                {productsError}{' '}
+                <button onClick={retryProducts} className="font-medium text-primary underline underline-offset-2">
+                  Coba lagi
+                </button>
+              </span>
+            ) : 'Memuat produk...'}
+          </div>
+        )}
         {renderView()}
       </main>
 
-      <Footer onNavigate={handleNavigate} />
+      <Footer onNavigate={handleNavigate} onNavigateToHowToOrder={handleNavigateToHowToOrder} />
 
       <CartDrawer
         items={cartItems}

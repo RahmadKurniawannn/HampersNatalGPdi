@@ -15,6 +15,10 @@ const OrderDetail = ({ items, total, onNavigate }) => {
   const [fulfillment, setFulfillment] = useState('delivery');
   const [address, setAddress] = useState('');
   const [orderNote, setOrderNote] = useState('');
+  const phoneDigits = customerPhone.replace(/\D/g, '');
+  const isPhoneValid = /^[+0-9\s().-]+$/.test(customerPhone)
+    && phoneDigits.length >= 8
+    && phoneDigits.length <= 15;
 
   const handleOrderViaWhatsApp = () => {
     const itemLines = items.map((item, index) => {
@@ -151,7 +155,14 @@ const OrderDetail = ({ items, total, onNavigate }) => {
                 placeholder="08xxxxxxxxxx"
                 className="mt-2 w-full border border-gray-200 bg-white px-4 py-3 font-light text-main outline-none transition-colors placeholder:text-gray-400 focus:border-primary"
                 required
+                aria-invalid={customerPhone.length > 0 && !isPhoneValid}
+                aria-describedby="customer-phone-hint"
               />
+              <span id="customer-phone-hint" className={`mt-2 block text-xs ${customerPhone.length > 0 && !isPhoneValid ? 'text-red-800' : 'text-muted'}`}>
+                {customerPhone.length > 0 && !isPhoneValid
+                  ? 'Masukkan nomor yang valid, 8–15 digit. Boleh memakai +, spasi, tanda kurung, titik, atau tanda hubung.'
+                  : 'Masukkan nomor dengan 8–15 digit, misalnya 081234567890.'}
+              </span>
             </label>
           </div>
 
@@ -226,7 +237,7 @@ const OrderDetail = ({ items, total, onNavigate }) => {
 
         <button
           onClick={handleOrderViaWhatsApp}
-          disabled={!customerName.trim() || !customerPhone.trim() || (fulfillment === 'delivery' && !address.trim())}
+          disabled={!customerName.trim() || !isPhoneValid || (fulfillment === 'delivery' && !address.trim())}
           className="mt-8 w-full bg-primary py-4 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-300 sm:w-auto sm:px-10"
         >
           Order via WhatsApp
