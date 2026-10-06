@@ -1,4 +1,5 @@
 import Hero from '../components/Hero';
+import tutorialVideo from '../assets/tutorial_cara_memesan.mp4';
 
 const Home = ({ products, onNavigate }) => {
   const featuredProducts = products.slice(0, 3);
@@ -128,16 +129,16 @@ const Home = ({ products, onNavigate }) => {
           <div className="mt-14 border-t border-gray-200 pt-10">
             <p className="text-xs font-medium uppercase tracking-widest text-primary">Video panduan</p>
             <h3 className="mt-3 font-serif text-2xl text-main sm:text-3xl">Cara memesan hampers</h3>
-            <div
-              role="img"
-              aria-label="Area video panduan pemesanan, video belum tersedia"
-              className="mx-auto mt-6 flex aspect-video w-full max-w-5xl items-center justify-center border-8 border-gray-800 bg-main px-6 text-center"
+            <video
+              controls
+              playsInline
+              preload="metadata"
+              className="mx-auto mt-6 block max-h-[75svh] w-full max-w-5xl border-8 border-gray-800 bg-main object-contain"
+              aria-label="Video panduan cara memesan hampers"
             >
-              <div>
-                <span aria-hidden="true" className="text-4xl text-red-200">▶</span>
-                <p className="mt-4 text-sm font-light text-white/70">Video panduan akan ditampilkan di sini.</p>
-              </div>
-            </div>
+              <source src={tutorialVideo} type="video/mp4" />
+              Browser Anda tidak mendukung pemutar video.
+            </video>
           </div>
         </div>
       </section>
