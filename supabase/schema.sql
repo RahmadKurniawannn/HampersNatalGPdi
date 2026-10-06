@@ -35,6 +35,10 @@ create policy "Admins can read all profiles"
 on public.profiles for select
 using (public.is_admin());
 
+drop policy if exists "Admins can promote pending profiles" on public.profiles;
+revoke update on public.profiles from public, anon, authenticated;
+revoke update (role) on public.profiles from public, anon, authenticated;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -52,7 +56,7 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.handle_new_user();
 
--- After registering the first admin, promote only approved accounts manually:
+-- Promote the first admin manually after creating its auth account:
 -- update public.profiles set role = 'admin' where email = 'admin@example.com';
 
 create table if not exists public.products (

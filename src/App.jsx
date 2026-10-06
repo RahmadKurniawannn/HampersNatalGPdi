@@ -282,6 +282,25 @@ function App() {
     setAdminUsersError('');
   };
 
+  const handleCreateAdmin = async (email, password) => {
+    if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+    const { data, error } = await supabase.functions.invoke('create-admin-user', {
+      body: { email, password },
+    });
+    if (error) {
+      if (error.context instanceof Response) {
+        const responseBody = await error.context.json();
+        if (typeof responseBody.error === 'string') {
+          throw new Error(responseBody.error);
+        }
+      }
+      throw error;
+    }
+    if (!data?.user) throw new Error('Akun dibuat, tetapi data akun tidak diterima.');
+    setAdminUsers(users => [data.user, ...users.filter(user => user.id !== data.user.id)]);
+    return data.user;
+  };
+
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
@@ -306,9 +325,7 @@ function App() {
         if (!authReady || !session || !isAdmin) {
           return <AdminAuth onNavigate={handleNavigate} hasSession={Boolean(session)} authError={authError} />;
         }
-        return <Admin products={products} adminUsers={adminUsers} adminUsersError={adminUsersError} logoutError={logoutError} onRefreshAdminUsers={handleRefreshAdminUsers} onNavigate={handleNavigate} onSaveProduct={handleSaveProduct} onDeleteProduct={handleDeleteProduct} onUploadImage={handleUploadImage} onLogout={handleLogout} />;
-      case 'admin-register':
-        return <AdminAuth mode="register" onNavigate={handleNavigate} />;
+        return <Admin products={products} adminUsers={adminUsers} adminUsersError={adminUsersError} logoutError={logoutError} onRefreshAdminUsers={handleRefreshAdminUsers} onCreateAdmin={handleCreateAdmin} onNavigate={handleNavigate} onSaveProduct={handleSaveProduct} onDeleteProduct={handleDeleteProduct} onUploadImage={handleUploadImage} onLogout={handleLogout} />;
       default:
         return <Home products={products} onNavigate={handleNavigate} />;
     }

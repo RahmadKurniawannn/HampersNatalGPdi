@@ -36,6 +36,10 @@ create policy "Admins can read all profiles"
 on public.profiles for select
 using (public.is_admin());
 
+drop policy if exists "Admins can promote pending profiles" on public.profiles;
+revoke update on public.profiles from public, anon, authenticated;
+revoke update (role) on public.profiles from public, anon, authenticated;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql

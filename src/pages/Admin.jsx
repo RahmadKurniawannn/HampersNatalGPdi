@@ -55,13 +55,19 @@ const emptyProduct = {
   includes: [],
 };
 
-const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAdminUsers, onNavigate, onSaveProduct, onDeleteProduct, onUploadImage, onLogout }) => {
+const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAdminUsers, onCreateAdmin, onNavigate, onSaveProduct, onDeleteProduct, onUploadImage, onLogout }) => {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyProduct);
   const [notice, setNotice] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshingAdminUsers, setIsRefreshingAdminUsers] = useState(false);
   const [refreshAdminUsersError, setRefreshAdminUsersError] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
+  const [createAdminError, setCreateAdminError] = useState('');
+  const [createAdminNotice, setCreateAdminNotice] = useState('');
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [cropSource, setCropSource] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -197,6 +203,29 @@ const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAd
     }
   };
 
+  const handleCreateAdmin = async event => {
+    event.preventDefault();
+    setIsCreatingAdmin(true);
+    setCreateAdminError('');
+    setCreateAdminNotice('');
+    if (newAdminPassword !== confirmAdminPassword) {
+      setCreateAdminError('Konfirmasi password tidak sama.');
+      setIsCreatingAdmin(false);
+      return;
+    }
+    try {
+      const user = await onCreateAdmin(newAdminEmail.trim(), newAdminPassword);
+      setNewAdminEmail('');
+      setNewAdminPassword('');
+      setConfirmAdminPassword('');
+      setCreateAdminNotice(`Akun admin ${user.email} berhasil dibuat.`);
+    } catch (error) {
+      setCreateAdminError(`Akun admin gagal ditambahkan: ${error.message}`);
+    } finally {
+      setIsCreatingAdmin(false);
+    }
+  };
+
   const handleDelete = async product => {
     if (window.confirm(`Hapus produk ${product.name}?`)) {
       try {
@@ -247,7 +276,7 @@ const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAd
             <div>
               <p className="text-xs uppercase tracking-widest text-primary">Akses pengelola</p>
               <h2 className="mt-2 font-serif text-2xl text-main">Akun yang terdaftar</h2>
-              <p className="mt-2 text-sm font-light text-muted">Daftar ini diambil langsung dari profil Supabase.</p>
+              <p className="mt-2 text-sm font-light text-muted">Buat akun admin baru dan kelola akses akun yang sudah terdaftar.</p>
             </div>
             <button
               onClick={handleRefreshAdminUsers}
@@ -258,6 +287,57 @@ const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAd
             </button>
           </div>
 
+          <form onSubmit={handleCreateAdmin} className="mt-6 grid gap-4 border-t border-gray-200 pt-6 sm:grid-cols-2">
+            <label className="block text-sm text-main">
+              Email admin baru
+              <input
+                type="email"
+                value={newAdminEmail}
+                onChange={event => setNewAdminEmail(event.target.value)}
+                className="mt-2 w-full border border-gray-200 px-4 py-3 font-light outline-none transition-colors focus:border-primary"
+                placeholder="admin@contoh.com"
+                autoComplete="email"
+                required
+              />
+            </label>
+            <label className="block text-sm text-main">
+              Password
+              <input
+                type="password"
+                value={newAdminPassword}
+                onChange={event => setNewAdminPassword(event.target.value)}
+                className="mt-2 w-full border border-gray-200 px-4 py-3 font-light outline-none transition-colors focus:border-primary"
+                placeholder="Minimal 6 karakter"
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
+            <label className="block text-sm text-main">
+              Konfirmasi password
+              <input
+                type="password"
+                value={confirmAdminPassword}
+                onChange={event => setConfirmAdminPassword(event.target.value)}
+                className="mt-2 w-full border border-gray-200 px-4 py-3 font-light outline-none transition-colors focus:border-primary"
+                placeholder="Ulangi password"
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={isCreatingAdmin}
+              className="self-end bg-primary px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isCreatingAdmin ? 'Membuat akun...' : 'Buat akun admin'}
+            </button>
+          </form>
+          <p className="mt-3 text-sm font-light text-muted">Akun langsung dibuat dengan role admin. Berikan email dan password tersebut secara aman kepada admin baru.</p>
+          {createAdminError && <p className="mt-4 text-sm text-red-800" role="alert">{createAdminError}</p>}
+          {createAdminNotice && <p className="mt-4 text-sm text-green-800" role="status">{createAdminNotice}</p>}
+
           <div className="mt-6 overflow-x-auto border-t border-gray-200">
             {(adminUsersError || refreshAdminUsersError) && (
               <p className="py-4 text-sm text-red-800" role="alert">{refreshAdminUsersError || adminUsersError}</p>
@@ -265,7 +345,7 @@ const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAd
             {adminUsers.length === 0 && !adminUsersError && !refreshAdminUsersError ? (
               <p className="py-6 text-sm font-light text-muted">Belum ada profil yang bisa ditampilkan.</p>
             ) : adminUsers.length > 0 ? (
-              <table className="w-full min-w-[34rem] text-left text-sm">
+              <table className="w-full min-w-[40rem] text-left text-sm">
                 <thead className="text-xs uppercase tracking-wider text-muted">
                   <tr>
                     <th className="py-4 pr-5 font-medium">Email</th>
