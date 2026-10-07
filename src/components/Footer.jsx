@@ -28,7 +28,7 @@ const Footer = ({ onNavigate, onNavigateToHowToOrder }) => {
             <div className="mb-5 inline-flex bg-white p-2">
               <img
                 src={logo}
-                alt="GPDI"
+                alt="GPdI"
                 className="h-16 w-auto object-contain"
               />
             </div>

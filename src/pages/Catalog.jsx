@@ -32,8 +32,8 @@ const Catalog = ({ products, onNavigate }) => {
   return (
     <div className="bg-base min-h-screen">
       {/* Page header — left-aligned, not centered */}
-      <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-14 pb-10 border-b border-gray-200/60">
-        <nav className="text-xs text-muted mb-6 flex items-center gap-2">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-8 sm:pt-14 pb-8 sm:pb-10 border-b border-gray-200/60">
+        <nav className="text-xs text-muted mb-6 flex flex-wrap items-center gap-2">
           <button
             onClick={() => onNavigate('home')}
             className="inline-flex min-h-10 items-center gap-2 border border-gray-300 px-3 text-sm text-main transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -54,8 +54,8 @@ const Catalog = ({ products, onNavigate }) => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-5 sm:px-8 py-16">
-        <div className="mb-12 flex flex-col gap-4 border-b border-gray-200 pb-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="max-w-7xl mx-auto px-4 py-10 sm:px-8 sm:py-16">
+        <div className="mb-10 flex flex-col gap-4 border-b border-gray-200 pb-6 sm:mb-12 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex w-full flex-col gap-3 sm:flex-row lg:max-w-2xl">
             <label className="relative block w-full">
             <span className="sr-only">Cari produk</span>
@@ -124,7 +124,7 @@ const Catalog = ({ products, onNavigate }) => {
                   className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
                 />
               </div>
-              <div className="bg-white flex flex-col justify-center px-10 py-12 lg:px-16">
+              <div className="bg-white flex flex-col justify-center px-5 py-8 sm:px-10 sm:py-12 lg:px-16">
                 <p className="mb-3 text-sm text-primary">{featured.category || 'Hampers'}</p>
                 <h2 className="font-serif text-3xl sm:text-4xl text-main mb-4 leading-snug">
                   {featured.name}
@@ -132,7 +132,7 @@ const Catalog = ({ products, onNavigate }) => {
                 <p className="text-muted font-light leading-relaxed mb-8">
                   {featured.description}
                 </p>
-                <div className="flex items-center gap-6">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                   <span className="text-xl font-medium text-main">{formatPrice(featured.basePrice)}</span>
                   <span className="text-sm text-primary font-medium group-hover:underline underline-offset-2">
                     Lihat detail

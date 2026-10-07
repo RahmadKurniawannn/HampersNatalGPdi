@@ -16,7 +16,7 @@ const CartDrawer = ({ items, total, isOpen, onClose, onRemove, onClear, onOrder 
     )}
 
     <aside
-      className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-base shadow-2xl transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'pointer-events-none translate-x-full'}`}
+      className={`fixed right-0 top-0 z-50 flex h-dvh w-full max-w-md flex-col bg-base shadow-2xl transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'pointer-events-none translate-x-full'}`}
       aria-hidden={!isOpen}
       inert={!isOpen}
       aria-label="Keranjang belanja"

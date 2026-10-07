@@ -54,8 +54,21 @@ function App() {
   const [productsError, setProductsError] = useState('');
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminUsersError, setAdminUsersError] = useState('');
+  const [orders, setOrders] = useState([]);
+  const [ordersError, setOrdersError] = useState('');
   const productChangesDuringLoad = useRef(new Map());
   const hasLoadedProducts = useRef(false);
+
+  const loadOrders = useCallback(async () => {
+    if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    setOrders(data || []);
+    setOrdersError('');
+  }, []);
 
   const loadProducts = useCallback(async () => {
     if (!supabase) return;
@@ -105,6 +118,8 @@ function App() {
         setIsAdmin(false);
         setAdminUsers([]);
         setAdminUsersError('');
+        setOrders([]);
+        setOrdersError('');
         setAuthReady(true);
         return;
       }
@@ -145,9 +160,18 @@ function App() {
           setAdminUsersError('Daftar akun tidak dapat dimuat. Periksa koneksi lalu coba refresh.');
           setAdminUsers([]);
         }
+        try {
+          await loadOrders();
+        } catch (ordersLoadError) {
+          console.error('Gagal memuat daftar pesanan:', ordersLoadError);
+          setOrders([]);
+          setOrdersError('Daftar pesanan tidak dapat dimuat. Periksa migrasi dan koneksi Supabase, lalu coba refresh.');
+        }
       } else {
         setAdminUsers([]);
         setAdminUsersError('');
+        setOrders([]);
+        setOrdersError('');
       }
       setAuthReady(true);
     };
@@ -170,7 +194,7 @@ function App() {
       clearTimeout(authLoadTimer);
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [loadOrders]);
 
   const handleNavigate = (viewName, params = {}) => {
     setCurrentView({ name: viewName, ...params });
@@ -205,6 +229,36 @@ function App() {
   const handleAddToCart = (item) => {
     setCartItems(prev => [...prev, item]);
     setIsCartOpen(true);
+  };
+
+  const handleCreateOrder = async order => {
+    if (!supabase) {
+      throw new Error('Supabase belum dikonfigurasi. Pesanan tidak dapat disimpan.');
+    }
+    const { error } = await supabase.from('orders').insert(order);
+    if (error) throw error;
+  };
+
+  const handleUpdateOrderStatus = async (orderId, status) => {
+    if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+    const { error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', orderId);
+    if (error) throw error;
+    setOrders(current => current.map(order => (
+      order.id === orderId ? { ...order, status } : order
+    )));
+  };
+
+  const handleDeleteOrder = async orderId => {
+    if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', orderId);
+    if (error) throw error;
+    setOrders(current => current.filter(order => order.id !== orderId));
   };
 
   const handleOrderNow = (item) => {
@@ -320,12 +374,12 @@ function App() {
           onOrderNow={handleOrderNow}
         />;
       case 'order':
-        return <OrderDetail items={cartItems} total={cartTotal} onNavigate={handleNavigate} />;
+        return <OrderDetail items={cartItems} total={cartTotal} onNavigate={handleNavigate} onCreateOrder={handleCreateOrder} />;
       case 'admin':
         if (!authReady || !session || !isAdmin) {
           return <AdminAuth onNavigate={handleNavigate} hasSession={Boolean(session)} authError={authError} />;
         }
-        return <Admin products={products} adminUsers={adminUsers} adminUsersError={adminUsersError} logoutError={logoutError} onRefreshAdminUsers={handleRefreshAdminUsers} onCreateAdmin={handleCreateAdmin} onNavigate={handleNavigate} onSaveProduct={handleSaveProduct} onDeleteProduct={handleDeleteProduct} onUploadImage={handleUploadImage} onLogout={handleLogout} />;
+        return <Admin products={products} adminUsers={adminUsers} adminUsersError={adminUsersError} orders={orders} ordersError={ordersError} logoutError={logoutError} onRefreshAdminUsers={handleRefreshAdminUsers} onRefreshOrders={loadOrders} onUpdateOrderStatus={handleUpdateOrderStatus} onDeleteOrder={handleDeleteOrder} onCreateAdmin={handleCreateAdmin} onNavigate={handleNavigate} onSaveProduct={handleSaveProduct} onDeleteProduct={handleDeleteProduct} onUploadImage={handleUploadImage} onLogout={handleLogout} />;
       default:
         return <Home products={products} onNavigate={handleNavigate} />;
     }

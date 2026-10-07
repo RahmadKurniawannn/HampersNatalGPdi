@@ -16,7 +16,7 @@ const Hero = ({ products, onNavigate }) => {
               Bingkisan.
             </h1>
             <p className="mb-10 max-w-md text-lg font-light leading-relaxed text-muted">
-              Hampers Natal GPDI dirancang untuk menyampaikan kasih yang tulus. Pilih, sesuaikan, dan kirimkan kepada mereka yang berarti.
+              Hampers Natal GPdI dirancang untuk menyampaikan kasih yang tulus. Pilih, sesuaikan, dan kirimkan kepada mereka yang berarti.
             </p>
             <div className="flex flex-wrap items-center gap-x-7 gap-y-4">
               <button
@@ -40,7 +40,7 @@ const Hero = ({ products, onNavigate }) => {
             <div className="relative h-80 lg:absolute lg:inset-y-0 lg:right-0 lg:h-full lg:w-full overflow-hidden">
               <img
                 src={heroProduct?.image}
-                alt={heroProduct ? `${heroProduct.name}, hampers Natal GPDI` : 'Hampers Natal GPDI'}
+                alt={heroProduct ? `${heroProduct.name}, hampers Natal GPdI` : 'Hampers Natal GPdI'}
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-x-0 bottom-0 bg-main/85 px-5 py-4 text-white sm:px-6">

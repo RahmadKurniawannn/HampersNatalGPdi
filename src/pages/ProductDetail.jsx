@@ -42,7 +42,7 @@ const ProductDetail = ({ productId, products, onNavigate, onAddToCart, onOrderNo
     <div className="bg-base min-h-screen">
       {/* Breadcrumb */}
       <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-8 pb-0">
-        <nav className="text-xs text-muted flex items-center gap-2" aria-label="Navigasi halaman">
+        <nav className="text-xs text-muted flex flex-wrap items-center gap-2" aria-label="Navigasi halaman">
           <button
             onClick={() => onNavigate('home')}
             className="hover:text-primary transition-colors focus:outline-none focus-visible:underline"
@@ -58,11 +58,11 @@ const ProductDetail = ({ productId, products, onNavigate, onAddToCart, onOrderNo
             Kembali ke katalog
           </button>
           <span aria-hidden>/</span>
-          <span className="text-main">{product.name}</span>
+          <span className="min-w-0 break-words text-main">{product.name}</span>
         </nav>
       </div>
 
-      <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-10 pb-24">
+      <div className="max-w-7xl mx-auto px-4 pt-8 pb-16 sm:px-8 sm:pt-10 sm:pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
 
           {/* LEFT: image (5 cols) — sticky on desktop */}
@@ -85,7 +85,7 @@ const ProductDetail = ({ productId, products, onNavigate, onAddToCart, onOrderNo
           <div className="lg:col-span-7 flex flex-col">
 
             <p className="mb-3 text-sm text-primary">{product.category || 'Hampers'}</p>
-            <h1 className="font-serif text-4xl sm:text-5xl text-main leading-tight mb-4">
+            <h1 className="mb-4 break-words font-serif text-3xl leading-tight text-main sm:text-5xl">
               {product.name}
             </h1>
 

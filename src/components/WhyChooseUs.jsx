@@ -4,7 +4,7 @@ const WhyChooseUs = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           <div className="lg:col-span-4">
-            <h2 className="text-3xl font-bold text-main mb-4">Mengapa Memilih GPDI?</h2>
+            <h2 className="text-3xl font-bold text-main mb-4">Mengapa Memilih GPdI?</h2>
             <p className="text-muted">Kami memastikan setiap bingkisan memberikan kesan mendalam bagi penerimanya.</p>
           </div>
           <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-8">

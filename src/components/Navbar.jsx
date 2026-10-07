@@ -20,9 +20,9 @@ const Navbar = ({ cartCount = 0, onNavigate, onNavigateToHowToOrder, currentView
             onClick={(e) => handleNav(e, 'home')}
             className="flex flex-shrink-0 items-center gap-3 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <img src={logo} alt="GPDI" className="h-10 w-auto" />
+            <img src={logo} alt="GPdI" className="h-10 w-auto" />
             <span className="hidden border-l border-gray-300 pl-3 text-left sm:block">
-              <span className="block text-[10px] font-medium tracking-[0.18em] text-primary">GPdi</span>
+              <span className="block text-[10px] font-medium tracking-[0.18em] text-primary">GPdI</span>
               <span className="mt-0.5 block font-serif text-sm text-main">Hampers Natal</span>
             </span>
           </button>

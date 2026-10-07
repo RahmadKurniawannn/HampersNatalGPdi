@@ -1,4 +1,5 @@
 -- Run this in the Supabase SQL editor before using a production admin panel.
+-- Run orders-migration.sql as well to enable order recording and export.
 -- Auth users are managed by Supabase Auth. This table provides a server-side role.
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,

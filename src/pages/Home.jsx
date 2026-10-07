@@ -25,7 +25,7 @@ const Home = ({ products, onNavigate }) => {
 
             <div className="space-y-6 text-lg font-light leading-relaxed text-muted lg:col-span-6 lg:col-start-7">
               <p>
-                Setiap hampers Natal GPDI disusun dari pilihan yang hangat, rapi, dan siap diberikan kepada orang yang berarti. Isinya bukan sekadar kumpulan produk, tetapi cara sederhana untuk menyampaikan perhatian.
+                Setiap hampers Natal GPdI disusun dari pilihan yang hangat, rapi, dan siap diberikan kepada orang yang berarti. Isinya bukan sekadar kumpulan produk, tetapi cara sederhana untuk menyampaikan perhatian.
               </p>
               <p>
                 Pilih Hampers, tambahkan sentuhan personal, lalu tentukan apakah bingkisan akan diantar ke rumah atau diambil di gereja.
@@ -46,7 +46,7 @@ const Home = ({ products, onNavigate }) => {
           {[
             ['01', 'Pilih dari rumah', 'Koleksi tersedia untuk kamu lihat dan sesuaikan kapan saja.'],
             ['02', 'Antar atau ambil', 'Tentukan cara menerima pesanan saat mengisi detail order.'],
-            ['03', 'Selesaikan via WhatsApp', 'Admin GPDI membantu konfirmasi transaksi dan pengiriman.'],
+            ['03', 'Selesaikan via WhatsApp', 'Admin GPdI membantu konfirmasi transaksi dan pengiriman.'],
           ].map(([number, title, description]) => (
             <div key={number} className="flex gap-4 py-6 md:px-7 md:py-8 first:pl-0 last:pr-0">
               <span className="font-serif text-xl text-red-200">{number}</span>
@@ -113,7 +113,7 @@ const Home = ({ products, onNavigate }) => {
                 {[
                   ['01', 'Pilih hampers', 'Temukan koleksi yang paling sesuai untuk keluarga, sahabat, atau rekan kerja.'],
                   ['02', 'Pesan hangat', 'Isi nama pengirim dan penerima pada kartu ucapan.'],
-                  ['03', 'Kirim detail order', 'Pilih antar atau ambil di gereja, lalu kirim ringkasannya ke WhatsApp GPDI.'],
+                  ['03', 'Kirim detail order', 'Pilih antar atau ambil di gereja, lalu kirim ringkasannya ke WhatsApp GPdI.'],
                 ].map(([number, title, description]) => (
                   <div key={number} className="grid grid-cols-[3rem_1fr] gap-5 py-6 sm:grid-cols-[4rem_1fr] sm:gap-7">
                     <span className="font-serif text-2xl text-primary">{number}</span>

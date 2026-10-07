@@ -9,18 +9,35 @@ const formatPrice = (price) =>
 
 const adminWhatsApp = '628985665487';
 
-const OrderDetail = ({ items, total, onNavigate }) => {
+const OrderDetail = ({ items, total, onNavigate, onCreateOrder }) => {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [fulfillment, setFulfillment] = useState('delivery');
   const [address, setAddress] = useState('');
   const [orderNote, setOrderNote] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderError, setOrderError] = useState('');
+  const [orderNotice, setOrderNotice] = useState('');
+  const [whatsAppUrl, setWhatsAppUrl] = useState('');
   const phoneDigits = customerPhone.replace(/\D/g, '');
   const isPhoneValid = /^[+0-9\s().-]+$/.test(customerPhone)
     && phoneDigits.length >= 8
     && phoneDigits.length <= 15;
 
-  const handleOrderViaWhatsApp = () => {
+  const handleOrderViaWhatsApp = async () => {
+    setIsSubmitting(true);
+    setOrderError('');
+    setOrderNotice('');
+    setWhatsAppUrl('');
+    const whatsappWindow = window.open('about:blank', '_blank');
+    if (whatsappWindow) whatsappWindow.opener = null;
+
+    const orderId = window.crypto.randomUUID();
+    const orderCodeSuffix = Array.from(window.crypto.getRandomValues(new Uint8Array(6)))
+      .map(value => value.toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+    const orderCode = `HMP-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${orderCodeSuffix}`;
     const itemLines = items.map((item, index) => {
       const lines = [
         `${index + 1}. ${item.product.name}`,
@@ -36,14 +53,15 @@ const OrderDetail = ({ items, total, onNavigate }) => {
       `Nama: ${customerName}`,
       `WhatsApp: ${customerPhone}`,
       `Metode: ${fulfillment === 'delivery' ? 'Diantar ke rumah' : 'Ambil di gereja'}`,
-      fulfillment === 'delivery' ? `Alamat: ${address}` : 'Lokasi: Gereja GPDI',
+      fulfillment === 'delivery' ? `Alamat: ${address}` : 'Lokasi: Gereja GPdI',
     ];
     if (orderNote) recipientLines.push(`Catatan: ${orderNote}`);
 
     const message = [
-      '*ORDER HAMPERS GPDI*',
+      '*ORDER HAMPERS GPdI*',
+      `Kode pesanan: ${orderCode}`,
       '',
-      'Halo Admin GPDI, saya ingin melakukan pemesanan dengan detail berikut:',
+      'Halo Admin GPdI, saya ingin melakukan pemesanan dengan detail berikut:',
       '',
       '*DETAIL PESANAN*',
       itemLines,
@@ -56,11 +74,37 @@ const OrderDetail = ({ items, total, onNavigate }) => {
       'Mohon dibantu untuk proses transaksi dan konfirmasi pengiriman. Terima kasih.',
     ].join('\n');
 
-    window.open(
-      `https://wa.me/${adminWhatsApp}?text=${encodeURIComponent(message)}`,
-      '_blank',
-      'noopener,noreferrer'
-    );
+    const url = `https://wa.me/${adminWhatsApp}?text=${encodeURIComponent(message)}`;
+    try {
+      await onCreateOrder({
+        id: orderId,
+        order_code: orderCode,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
+        fulfillment,
+        address: fulfillment === 'delivery' ? address.trim() : '',
+        order_note: orderNote.trim() || null,
+        items: items.map(item => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          total_price: item.totalPrice,
+          greeting_from: item.greetingFrom || '',
+          greeting_to: item.greetingTo || '',
+        })),
+        total,
+      });
+      if (whatsappWindow) {
+        whatsappWindow.location.href = url;
+      } else {
+        setWhatsAppUrl(url);
+        setOrderNotice('Pesanan tersimpan. Browser memblokir tab WhatsApp; gunakan tautan di bawah untuk melanjutkan.');
+      }
+    } catch (error) {
+      if (whatsappWindow) whatsappWindow.close();
+      setOrderError(`Pesanan tidak dapat disimpan, jadi WhatsApp belum dibuka: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (items.length === 0) {
@@ -82,8 +126,8 @@ const OrderDetail = ({ items, total, onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-base">
-      <div className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16">
-        <nav className="mb-10 flex items-center gap-2 text-xs text-muted" aria-label="Navigasi halaman">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-8 sm:py-16">
+        <nav className="mb-8 flex flex-wrap items-center gap-2 text-xs text-muted sm:mb-10" aria-label="Navigasi halaman">
           <button
             onClick={() => onNavigate('home')}
             className="transition-colors hover:text-primary focus:outline-none focus-visible:underline"
@@ -232,15 +276,27 @@ const OrderDetail = ({ items, total, onNavigate }) => {
         </div>
 
         <p className="mt-6 text-sm font-light leading-relaxed text-muted">
-          Detail pengiriman dan konfirmasi pembayaran akan dibantu oleh tim GPDI setelah pesanan diterima.
+          Detail pengiriman dan konfirmasi pembayaran akan dibantu oleh tim GPdI setelah pesanan diterima.
         </p>
+
+        {orderError && <p className="mt-5 text-sm text-red-800" role="alert">{orderError}</p>}
+        {orderNotice && (
+          <p className="mt-5 text-sm text-green-800" role="status">
+            {orderNotice}{' '}
+            {whatsAppUrl && (
+              <a href={whatsAppUrl} target="_blank" rel="noreferrer" className="font-medium underline">
+                Buka WhatsApp
+              </a>
+            )}
+          </p>
+        )}
 
         <button
           onClick={handleOrderViaWhatsApp}
-          disabled={!customerName.trim() || !isPhoneValid || (fulfillment === 'delivery' && !address.trim())}
+          disabled={isSubmitting || !customerName.trim() || !isPhoneValid || (fulfillment === 'delivery' && !address.trim())}
           className="mt-8 w-full bg-primary py-4 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-300 sm:w-auto sm:px-10"
         >
-          Order via WhatsApp
+          {isSubmitting ? 'Menyimpan pesanan...' : 'Order via WhatsApp'}
         </button>
       </div>
     </div>

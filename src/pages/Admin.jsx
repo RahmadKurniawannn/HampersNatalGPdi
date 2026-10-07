@@ -10,6 +10,36 @@ const formatRupiah = price => new Intl.NumberFormat('id-ID', {
 
 const parsePrice = price => Number(String(price).replace(/[^0-9]/g, '')) || 0;
 
+const exportSuccessfulOrders = orders => {
+  const rows = [
+    ['Kode Pesanan', 'Tanggal', 'Nama', 'WhatsApp', 'Metode', 'Alamat', 'Catatan', 'Rincian Hampers', 'Total', 'Status'],
+    ...orders.map(order => [
+      order.order_code || order.id,
+      new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(order.created_at)),
+      order.customer_name,
+      order.customer_phone,
+      order.fulfillment === 'delivery' ? 'Diantar' : 'Ambil di gereja',
+      order.address || '',
+      order.order_note || '',
+      (order.items || []).map(item => `${item.quantity}x ${item.name} (${formatRupiah(item.total_price)})`).join(' | '),
+      order.total,
+      'Berhasil',
+    ]),
+  ];
+  const csv = `\uFEFF${rows.map(row => row.map(value => {
+    const text = String(value ?? '');
+    const safeText = /^[\t\r\n ]*[=+\-@]/.test(text) ? `'${text}` : text;
+    return `"${safeText.replace(/"/g, '""')}"`;
+  }).join(';')).join('\r\n')}`;
+  const file = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `pesanan-berhasil-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
 const createCroppedFile = async (imageUrl, area, originalFile) => {
   const image = await new Promise((resolve, reject) => {
     const element = new Image();
@@ -55,7 +85,7 @@ const emptyProduct = {
   includes: [],
 };
 
-const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAdminUsers, onCreateAdmin, onNavigate, onSaveProduct, onDeleteProduct, onUploadImage, onLogout }) => {
+const Admin = ({ products, adminUsers, adminUsersError, orders, ordersError, logoutError, onRefreshAdminUsers, onRefreshOrders, onUpdateOrderStatus, onDeleteOrder, onCreateAdmin, onNavigate, onSaveProduct, onDeleteProduct, onUploadImage, onLogout }) => {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyProduct);
   const [notice, setNotice] = useState('');
@@ -69,11 +99,54 @@ const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAd
   const [createAdminNotice, setCreateAdminNotice] = useState('');
   const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   const [isImageUploading, setIsImageUploading] = useState(false);
+  const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState('');
+  const [ordersNotice, setOrdersNotice] = useState('');
   const [cropSource, setCropSource] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedArea, setCroppedArea] = useState(null);
   const isSavingRef = useRef(false);
+  const successfulOrders = orders.filter(order => order.status === 'successful');
+
+  const handleRefreshOrders = async () => {
+    setIsRefreshingOrders(true);
+    setOrdersNotice('');
+    try {
+      await onRefreshOrders();
+    } catch (error) {
+      setOrdersNotice(`Daftar pesanan gagal diperbarui: ${error.message}`);
+    } finally {
+      setIsRefreshingOrders(false);
+    }
+  };
+
+  const handleOrderStatusChange = async (order, status) => {
+    setUpdatingOrderId(order.id);
+    setOrdersNotice('');
+    try {
+      await onUpdateOrderStatus(order.id, status);
+    } catch (error) {
+      setOrdersNotice(`Status pesanan gagal diperbarui: ${error.message}`);
+    } finally {
+      setUpdatingOrderId('');
+    }
+  };
+
+  const handleOrderDelete = async order => {
+    const orderLabel = order.order_code || order.id;
+    if (!window.confirm(`Hapus pesanan ${orderLabel}? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+    setUpdatingOrderId(order.id);
+    setOrdersNotice('');
+    try {
+      await onDeleteOrder(order.id);
+    } catch (error) {
+      setOrdersNotice(`Pesanan gagal dihapus: ${error.message}`);
+    } finally {
+      setUpdatingOrderId('');
+    }
+  };
 
   useEffect(() => {
     if (!cropSource?.url) return undefined;
@@ -271,6 +344,206 @@ const Admin = ({ products, adminUsers, adminUsersError, logoutError, onRefreshAd
       </div>
 
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.8fr)]">
+        <section className="border border-gray-200 bg-white p-5 sm:p-7 lg:col-span-2">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-primary">Transaksi</p>
+              <h2 className="mt-2 font-serif text-2xl text-main">Pesanan pelanggan</h2>
+              <p className="mt-2 text-sm font-light text-muted">
+                Tandai berhasil setelah pembayaran atau transaksi diverifikasi. Hanya pesanan berhasil yang diekspor.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleRefreshOrders}
+                disabled={isRefreshingOrders}
+                className="border border-gray-300 px-4 py-2.5 text-sm font-medium text-main transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isRefreshingOrders ? 'Memuat...' : 'Refresh pesanan'}
+              </button>
+              <button
+                onClick={() => exportSuccessfulOrders(successfulOrders)}
+                disabled={successfulOrders.length === 0}
+                className="bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                Ekspor Excel ({successfulOrders.length})
+              </button>
+            </div>
+          </div>
+          {(ordersError || ordersNotice) && (
+            <p className="mt-4 text-sm text-red-800" role="alert">{ordersNotice || ordersError}</p>
+          )}
+          {orders.length === 0 && !ordersError ? (
+            <p className="mt-6 border-t border-gray-200 py-6 text-sm font-light text-muted">Belum ada pesanan pelanggan.</p>
+          ) : orders.length > 0 ? (
+            <>
+              <div className="mt-6 space-y-4 border-t border-gray-200 pt-5 xl:hidden">
+                {orders.map(order => (
+                  <article key={order.id} className="min-w-0 border border-gray-200 bg-base p-4 sm:p-5">
+                    <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="break-all font-mono text-xs font-medium text-main">{order.order_code || order.id}</p>
+                        <p className="mt-1 text-xs text-muted">
+                          {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(order.created_at))}
+                        </p>
+                      </div>
+                      <span className={`self-start px-2.5 py-1 text-xs font-medium ${order.status === 'successful' ? 'bg-green-100 text-green-800' : order.status === 'cancelled' ? 'bg-gray-100 text-muted' : 'bg-amber-100 text-amber-900'}`}>
+                        {order.status === 'successful' ? 'Berhasil' : order.status === 'cancelled' ? 'Dibatalkan' : 'Menunggu verifikasi'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2">
+                      <div className="min-w-0">
+                        <p className="text-xs uppercase tracking-wider text-muted">Pelanggan</p>
+                        <p className="mt-1 break-words text-sm font-medium text-main">{order.customer_name}</p>
+                        <p className="mt-1 break-all text-sm text-muted">{order.customer_phone}</p>
+                        <p className="mt-2 break-words text-sm text-muted">
+                          {order.fulfillment === 'delivery' ? `Diantar: ${order.address}` : 'Ambil di gereja'}
+                        </p>
+                        {order.order_note && <p className="mt-2 break-words text-xs text-muted">Catatan: {order.order_note}</p>}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs uppercase tracking-wider text-muted">Rincian hampers</p>
+                        {(order.items || []).map((item, index) => (
+                          <p key={`${order.id}-${index}`} className="mt-1 break-words text-sm text-main">
+                            {item.quantity}x {item.name} <span className="text-muted">({formatRupiah(item.total_price)})</span>
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="font-serif text-xl text-main">{formatRupiah(order.total)}</p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        {order.status !== 'successful' && (
+                          <button
+                            onClick={() => handleOrderStatusChange(order, 'successful')}
+                            disabled={updatingOrderId === order.id}
+                            className="text-xs font-medium text-green-800 underline underline-offset-2 disabled:opacity-50"
+                          >
+                            Tandai berhasil
+                          </button>
+                        )}
+                        {order.status !== 'cancelled' && (
+                          <button
+                            onClick={() => handleOrderStatusChange(order, 'cancelled')}
+                            disabled={updatingOrderId === order.id}
+                            className="text-xs text-muted underline underline-offset-2 disabled:opacity-50"
+                          >
+                            Batalkan
+                          </button>
+                        )}
+                        {order.status !== 'pending' && (
+                          <button
+                            onClick={() => handleOrderStatusChange(order, 'pending')}
+                            disabled={updatingOrderId === order.id}
+                            className="text-xs text-primary underline underline-offset-2 disabled:opacity-50"
+                          >
+                            Kembalikan ke menunggu
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleOrderDelete(order)}
+                          disabled={updatingOrderId === order.id}
+                          className="text-xs font-medium text-red-800 underline underline-offset-2 disabled:opacity-50"
+                        >
+                          Hapus pesanan
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="mt-6 hidden overflow-x-auto border-t border-gray-200 xl:block">
+              <table className="w-full min-w-[68rem] text-left text-sm">
+                <thead className="text-xs uppercase tracking-wider text-muted">
+                  <tr>
+                    <th className="py-4 pr-5 font-medium">Pesanan</th>
+                    <th className="py-4 pr-5 font-medium">Pelanggan</th>
+                    <th className="py-4 pr-5 font-medium">Rincian</th>
+                    <th className="py-4 pr-5 font-medium">Total</th>
+                    <th className="py-4 pr-5 font-medium">Status</th>
+                    <th className="py-4 font-medium">Tindakan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {orders.map(order => (
+                    <tr key={order.id} className="align-top">
+                      <td className="py-4 pr-5 text-muted">
+                        <span className="block max-w-40 break-all font-mono text-xs text-main">{order.order_code || order.id}</span>
+                        <span className="mt-1 block text-xs">
+                          {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(order.created_at))}
+                        </span>
+                      </td>
+                      <td className="py-4 pr-5">
+                        <span className="block font-medium text-main">{order.customer_name}</span>
+                        <span className="mt-1 block text-xs text-muted">{order.customer_phone}</span>
+                        <span className="mt-1 block text-xs text-muted">
+                          {order.fulfillment === 'delivery' ? `Diantar: ${order.address}` : 'Ambil di gereja'}
+                        </span>
+                        {order.order_note && <span className="mt-1 block max-w-56 text-xs text-muted">Catatan: {order.order_note}</span>}
+                      </td>
+                      <td className="max-w-64 py-4 pr-5 text-xs text-muted">
+                        {(order.items || []).map((item, index) => (
+                          <span key={`${order.id}-${index}`} className="mb-1 block">
+                            {item.quantity}x {item.name} ({formatRupiah(item.total_price)})
+                          </span>
+                        ))}
+                      </td>
+                      <td className="whitespace-nowrap py-4 pr-5 font-medium text-main">{formatRupiah(order.total)}</td>
+                      <td className="py-4 pr-5">
+                        <span className={`inline-flex whitespace-nowrap px-2.5 py-1 text-xs font-medium ${order.status === 'successful' ? 'bg-green-100 text-green-800' : order.status === 'cancelled' ? 'bg-gray-100 text-muted' : 'bg-amber-100 text-amber-900'}`}>
+                          {order.status === 'successful' ? 'Berhasil' : order.status === 'cancelled' ? 'Dibatalkan' : 'Menunggu verifikasi'}
+                        </span>
+                      </td>
+                      <td className="py-4">
+                        <div className="flex flex-col items-start gap-2">
+                          {order.status !== 'successful' && (
+                            <button
+                              onClick={() => handleOrderStatusChange(order, 'successful')}
+                              disabled={updatingOrderId === order.id}
+                              className="text-xs font-medium text-green-800 underline underline-offset-2 disabled:opacity-50"
+                            >
+                              Tandai berhasil
+                            </button>
+                          )}
+                          {order.status !== 'cancelled' && (
+                            <button
+                              onClick={() => handleOrderStatusChange(order, 'cancelled')}
+                              disabled={updatingOrderId === order.id}
+                              className="text-xs text-muted underline underline-offset-2 disabled:opacity-50"
+                            >
+                              Batalkan
+                            </button>
+                          )}
+                          {order.status !== 'pending' && (
+                            <button
+                              onClick={() => handleOrderStatusChange(order, 'pending')}
+                              disabled={updatingOrderId === order.id}
+                              className="text-xs text-primary underline underline-offset-2 disabled:opacity-50"
+                            >
+                              Kembalikan ke menunggu
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleOrderDelete(order)}
+                            disabled={updatingOrderId === order.id}
+                            className="text-xs font-medium text-red-800 underline underline-offset-2 disabled:opacity-50"
+                          >
+                            Hapus pesanan
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </div>
+            </>
+          ) : null}
+          <p className="mt-4 text-xs font-light text-muted">
+            File CSV menggunakan UTF-8 dan dapat dibuka di Microsoft Excel. Pilih &quot;Simpan Sebagai&quot; di Excel untuk menyimpannya sebagai .xlsx.
+          </p>
+        </section>
+
         <section className="border border-gray-200 bg-white p-5 sm:p-7 lg:col-span-2">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
