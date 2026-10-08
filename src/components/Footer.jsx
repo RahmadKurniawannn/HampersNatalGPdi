@@ -76,7 +76,7 @@ const Footer = ({ onNavigate, onNavigateToHowToOrder }) => {
                 <a href="mailto:halo@gpdi-hampers.com" className="transition-colors hover:text-white focus:outline-none focus-visible:underline">halo@gpdi-hampers.com</a>
               </li>
               <li>
-                <a href="https://wa.me/628985665487" target="_blank" rel="noreferrer" className="transition-colors hover:text-white focus:outline-none focus-visible:underline">WhatsApp: +62 898 5665 487</a>
+                <a href="https://wa.me/6281378153463" target="_blank" rel="noreferrer" className="transition-colors hover:text-white focus:outline-none focus-visible:underline">WhatsApp: +62 813-7815-3463</a>
               </li>
               <li className="pt-2 text-xs leading-relaxed text-red-100/45">Admin membantu konfirmasi transaksi dan pilihan pengiriman.</li>
             </ul>

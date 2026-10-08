@@ -7,7 +7,7 @@ const formatPrice = (price) =>
     maximumFractionDigits: 0,
   }).format(price);
 
-const adminWhatsApp = '628985665487';
+const adminWhatsApp = '6281378153463';
 
 const OrderDetail = ({ items, total, onNavigate, onCreateOrder }) => {
   const [customerName, setCustomerName] = useState('');
