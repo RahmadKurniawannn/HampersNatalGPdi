@@ -112,11 +112,7 @@ const Catalog = ({ products, onNavigate }) => {
 
         {featured && (
           <>
-            <button
-              type="button"
-              className="group mb-20 grid w-full cursor-pointer grid-cols-1 gap-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary lg:grid-cols-2"
-              onClick={() => onNavigate('detail', { id: featured.id })}
-            >
+            <div className="group mb-20 grid grid-cols-1 gap-0 lg:grid-cols-2">
               <div className="aspect-[4/5] overflow-hidden">
                 <img
                   src={featured.image}
@@ -132,22 +128,26 @@ const Catalog = ({ products, onNavigate }) => {
                 <p className="text-muted font-light leading-relaxed mb-8">
                   {featured.description}
                 </p>
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
                   <span className="text-xl font-medium text-main">{formatPrice(featured.basePrice)}</span>
-                  <span className="text-sm text-primary font-medium group-hover:underline underline-offset-2">
-                    Lihat detail
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('detail', { id: featured.id })}
+                    className="inline-flex items-center justify-center gap-2 rounded-sm bg-primary px-6 py-3.5 text-sm font-medium tracking-wide text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-dark hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:translate-y-0"
+                  >
+                    Lihat Detail
+                    <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
+                  </button>
                 </div>
               </div>
-            </button>
+            </div>
 
             {rest.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-16">
                 {rest.map(product => (
-                  <button
+                  <article
                     key={product.id}
-                    onClick={() => onNavigate('detail', { id: product.id })}
-                    className="group text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
+                    className="group"
                   >
                     <div className="aspect-[4/5] overflow-hidden mb-5">
                       <img
@@ -162,7 +162,15 @@ const Catalog = ({ products, onNavigate }) => {
                     <p className="mb-2 text-xs text-primary">{product.category || 'Hampers'}</p>
                     <p className="text-sm text-muted font-light mb-3 line-clamp-2">{product.description}</p>
                     <p className="text-base font-medium text-main">{formatPrice(product.basePrice)}</p>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('detail', { id: product.id })}
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-sm bg-primary px-6 py-3.5 text-sm font-medium tracking-wide text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-dark hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:translate-y-0"
+                    >
+                      Lihat Detail
+                      <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
+                    </button>
+                  </article>
                 ))}
               </div>
             )}
